@@ -8,12 +8,16 @@ package inventory
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/netip"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -47,8 +51,15 @@ type Prometheus struct {
 	// "internal"). Unlisted classes are internal when their name contains
 	// "internal" or "private", internet-facing otherwise.
 	IngressClasses map[string]string
-	Client         *http.Client
-	Log            *slog.Logger
+	// BearerTokenFile holds a token sent as "Authorization: Bearer", read at
+	// each query so that rotated tokens (projected ServiceAccount tokens) are
+	// picked up.
+	BearerTokenFile string
+	// Headers are sent with each query, e.g. X-Scope-OrgID to a multi-tenant
+	// Mimir.
+	Headers map[string]string
+	Client  *http.Client // from NewClient, which trusts a private CA
+	Log     *slog.Logger
 
 	exposureAvailable bool
 	warned            map[string]bool // warnings already logged
@@ -270,6 +281,16 @@ func (t *Prometheus) query(ctx context.Context, q string) ([]map[string]string, 
 	if err != nil {
 		return nil, err
 	}
+	for name, value := range t.Headers {
+		req.Header.Set(name, value)
+	}
+	if t.BearerTokenFile != "" {
+		token, err := os.ReadFile(t.BearerTokenFile)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(token)))
+	}
 	client := t.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -279,6 +300,12 @@ func (t *Prometheus) query(ctx context.Context, q string) ([]map[string]string, 
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && !strings.Contains(resp.Header.Get("Content-Type"), "json") {
+		// Not Prometheus answering: an authenticating proxy's 401 or 403
+		// says why in its body.
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("HTTP %s: %s", resp.Status, strings.TrimSpace(string(msg)))
+	}
 	var body struct {
 		Status string `json:"status"`
 		Error  string `json:"error"`
@@ -306,6 +333,30 @@ func (t *Prometheus) query(ctx context.Context, q string) ([]map[string]string, 
 		out[i] = m
 	}
 	return out, nil
+}
+
+// NewClient returns a client for the Prometheus API that trusts the PEM
+// certificates of caFile on top of the system ones.
+func NewClient(caFile string) (*http.Client, error) {
+	client := &http.Client{Timeout: time.Minute}
+	if caFile == "" {
+		return client, nil
+	}
+	pem, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, err
+	}
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+	if !roots.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("%s: no PEM certificate", caFile)
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{RootCAs: roots}
+	client.Transport = tr
+	return client, nil
 }
 
 // entrypointExposure classifies a Traefik entrypoint.

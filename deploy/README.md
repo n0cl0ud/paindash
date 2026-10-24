@@ -29,6 +29,51 @@ the optional `kube_traefik_*` series below, and `kube_endpointslice_endpoints` o
   `prometheus.defaultCluster`): series without the env label get that env, and the env filter
   is off.
 
+**Authentication to the Prometheus API**, when it asks for one:
+
+- **Basic auth:** credentials in the URL (`https://user:password@host`). Pass such a URL from a
+  Secret rather than `prometheus.url`, which would show it in the pod spec:
+
+  ```yaml
+  extraEnv:
+  - name: PAINDASH_PROMETHEUS_URL
+    valueFrom:
+      secretKeyRef: {name: paindash-prometheus, key: url}
+  ```
+
+- **Bearer token:** `prometheus.bearerTokenFile`, a file read at each sync, so that a rotated token
+  (a projected ServiceAccount token) is picked up.
+- **Private CA:** `prometheus.caFile`, PEM certificates trusted for this API only, on top of the
+  system ones.
+- **Headers:** `prometheus.headers`, e.g. `X-Scope-OrgID: tenant-1` for a multi-tenant Mimir.
+
+Mount the token and CA files with `extraVolumes` and `extraVolumeMounts`. OpenShift's Thanos
+Querier, for example, takes the pod's ServiceAccount token once that ServiceAccount is bound to the
+`cluster-monitoring-view` ClusterRole, and its certificate is signed by the service CA, published in
+every namespace as the `openshift-service-ca.crt` ConfigMap:
+
+```sh
+kubectl create clusterrolebinding paindash-monitoring-view \
+  --clusterrole=cluster-monitoring-view --serviceaccount=paindash:paindash
+```
+
+```yaml
+prometheus:
+  url: https://thanos-querier.openshift-monitoring.svc:9091
+  bearerTokenFile: /var/run/secrets/paindash/token
+  caFile: /var/run/secrets/paindash/service-ca.crt
+extraVolumes:
+- name: prometheus-auth
+  projected:
+    sources:
+    - serviceAccountToken: {path: token, expirationSeconds: 3600}
+    - configMap:
+        name: openshift-service-ca.crt
+        items: [{key: service-ca.crt, path: service-ca.crt}]
+extraVolumeMounts:
+- {name: prometheus-auth, mountPath: /var/run/secrets/paindash, readOnly: true}
+```
+
 **PostgreSQL 14+.** Not bundled. paindash creates and migrates its own schema in a database it
 owns:
 

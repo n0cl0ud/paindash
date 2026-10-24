@@ -37,6 +37,8 @@ database:
 
 prometheus:
   # Prometheus-compatible query API with the kube-state-metrics series; required unless demo.enabled.
+  # Credentials in it (https://user:password@host) would show in the pod spec: pass such a URL
+  # from a Secret through extraEnv (PAINDASH_PROMETHEUS_URL) instead.
   url: ""
   # Series label holding the env (binary default "env").
   envLabel: ""
@@ -46,6 +48,12 @@ prometheus:
   defaultEnv: ""
   # Cluster of series without the cluster label (binary default "default").
   defaultCluster: ""
+  # File holding a bearer token for the API, read at each sync, e.g. a projected ServiceAccount token mounted with extraVolumes.
+  bearerTokenFile: ""
+  # PEM file of the CAs trusted for the API's certificate, on top of the system ones, e.g. mounted with extraVolumes.
+  caFile: ""
+  # HTTP headers sent to the API, e.g. X-Scope-OrgID: tenant-1 for a multi-tenant Mimir.
+  headers: {}
 
 # Envs to show, in switch order; the first is scanned first (binary default prod,test,dev).
 envs: []
@@ -104,6 +112,10 @@ demo:
 extraEnv: []
 # Extra environment sources (EnvFromSource list), e.g. a Secret of PG* variables.
 envFrom: []
+# Extra volumes (Volume list), e.g. the token or CA files of prometheus.bearerTokenFile and prometheus.caFile.
+extraVolumes: []
+# Extra volume mounts of the paindash container (VolumeMount list).
+extraVolumeMounts: []
 
 persistence:
   # Keeps the grype DB (~3 GB) on a PersistentVolumeClaim; disabled, an emptyDir downloaded again on every restart.

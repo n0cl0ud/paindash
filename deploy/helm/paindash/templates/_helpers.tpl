@@ -70,16 +70,23 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/* Fails rendering on configurations the binary would reject at startup. */}}
 {{- define "paindash.validate" -}}
 {{- $pgEnv := false }}
+{{- $promEnv := false }}
 {{- range .Values.extraEnv }}
 {{- if has .name (list "PAINDASH_DATABASE_URL" "PGHOST") }}
 {{- $pgEnv = true }}
+{{- end }}
+{{- if eq .name "PAINDASH_PROMETHEUS_URL" }}
+{{- $promEnv = true }}
 {{- end }}
 {{- end }}
 {{- if not (or .Values.database.url .Values.database.existingSecret $pgEnv .Values.envFrom) }}
 {{- fail "paindash needs PostgreSQL 14+ (none is bundled, demo mode included): set database.url, database.existingSecret, or PG* variables through extraEnv or envFrom" }}
 {{- end }}
-{{- if not (or .Values.prometheus.url .Values.demo.enabled) }}
-{{- fail "set prometheus.url: a Prometheus-compatible API with the kube-state-metrics series (or demo.enabled=true)" }}
+{{- if not (or .Values.prometheus.url $promEnv .Values.envFrom .Values.demo.enabled) }}
+{{- fail "set prometheus.url, or PAINDASH_PROMETHEUS_URL through extraEnv or envFrom: a Prometheus-compatible API with the kube-state-metrics series (or demo.enabled=true)" }}
+{{- end }}
+{{- if and .Values.prometheus.url $promEnv }}
+{{- fail "prometheus.url and PAINDASH_PROMETHEUS_URL in extraEnv are both set: keep one" }}
 {{- end }}
 {{- if not (has .Values.auth.mode (list "pomerium" "disabled")) }}
 {{- fail (printf "auth.mode: %q, want \"pomerium\" or \"disabled\"" (toString .Values.auth.mode)) }}

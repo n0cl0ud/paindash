@@ -6,6 +6,8 @@ First public release.
 
 - Inventory of the images actually running, from kube-state-metrics through any Prometheus-compatible
   API; several clusters and environments by series labels, or a single Prometheus with defaults.
+  Basic auth, a bearer token file (re-read at each sync), extra headers such as `X-Scope-OrgID`, and
+  a private CA for that API.
 - One scan per digest (syft SBOM stored, grype match), hourly vulnerability DB check and rematch of
   every stored SBOM, CISA KEV and FIRST EPSS enrichment.
 - Exposure from Ingresses (by class), LoadBalancer Services and Traefik IngressRoutes, followed to

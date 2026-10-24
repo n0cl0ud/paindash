@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -219,6 +220,28 @@ func prometheusSource(envs []string) (*inventory.Prometheus, error) {
 		}
 		classes[class] = lvl
 	}
+	headers := map[string]string{}
+	for _, kv := range list(os.Getenv("PAINDASH_PROMETHEUS_HEADERS")) {
+		name, value, _ := strings.Cut(kv, "=")
+		if name == "" || value == "" {
+			return nil, fmt.Errorf("PAINDASH_PROMETHEUS_HEADERS: %q: want Name=value", kv)
+		}
+		headers[name] = value
+	}
+	// Read at each query; checked now, as a missing file is a deployment error.
+	token := os.Getenv("PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE")
+	if token != "" {
+		if _, err := os.ReadFile(token); err != nil {
+			return nil, fmt.Errorf("PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE: %w", err)
+		}
+		if pu, err := url.Parse(u); err == nil && pu.User != nil {
+			return nil, errors.New("PAINDASH_PROMETHEUS_URL has credentials and PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE is set: keep one")
+		}
+	}
+	client, err := inventory.NewClient(os.Getenv("PAINDASH_PROMETHEUS_CA_FILE"))
+	if err != nil {
+		return nil, fmt.Errorf("PAINDASH_PROMETHEUS_CA_FILE: %w", err)
+	}
 	return &inventory.Prometheus{
 		URL:               u,
 		Envs:              envs,
@@ -228,7 +251,9 @@ func prometheusSource(envs []string) (*inventory.Prometheus, error) {
 		DefaultCluster:    os.Getenv("PAINDASH_DEFAULT_CLUSTER"),
 		PublicEntrypoints: list(os.Getenv("PAINDASH_PUBLIC_ENTRYPOINTS")),
 		IngressClasses:    classes,
-		Client:            &http.Client{Timeout: time.Minute},
+		BearerTokenFile:   token,
+		Headers:           headers,
+		Client:            client,
 		Log:               slog.Default(),
 	}, nil
 }

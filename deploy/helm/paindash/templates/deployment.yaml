@@ -3,6 +3,10 @@
 {{- range $class, $level := .Values.exposure.ingressClasses }}
 {{- $classes = append $classes (printf "%s=%s" $class $level) }}
 {{- end }}
+{{- $headers := list }}
+{{- range $name, $value := .Values.prometheus.headers }}
+{{- $headers = append $headers (printf "%s=%s" $name $value) }}
+{{- end }}
 {{- /* Set only when non-empty, so the binary's defaults apply. */}}
 {{- $config := dict
   "PAINDASH_PROMETHEUS_URL" .Values.prometheus.url
@@ -10,6 +14,9 @@
   "PAINDASH_CLUSTER_LABEL" .Values.prometheus.clusterLabel
   "PAINDASH_DEFAULT_ENV" .Values.prometheus.defaultEnv
   "PAINDASH_DEFAULT_CLUSTER" .Values.prometheus.defaultCluster
+  "PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE" .Values.prometheus.bearerTokenFile
+  "PAINDASH_PROMETHEUS_CA_FILE" .Values.prometheus.caFile
+  "PAINDASH_PROMETHEUS_HEADERS" (join "," $headers)
   "PAINDASH_ENVS" (join "," .Values.envs)
   "PAINDASH_PROMOTION" (join "," .Values.promotion)
   "PAINDASH_PUBLIC_ENTRYPOINTS" (join "," .Values.exposure.publicEntrypoints)
@@ -153,6 +160,9 @@ spec:
           mountPath: /etc/paindash/pull
           readOnly: true
         {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       volumes:
       - name: scratch
         emptyDir:
@@ -168,6 +178,9 @@ spec:
       - name: pull-secret
         secret:
           secretName: {{ .Values.registry.pullSecret }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

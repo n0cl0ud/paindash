@@ -116,6 +116,11 @@ Every sync runs instant queries (`/api/v1/query`) against the Prometheus-compati
   `PAINDASH_ENVS`, unless `PAINDASH_DEFAULT_ENV` is set: then nothing is filtered and series without
   the env label get the default. Series without a cluster label get `PAINDASH_DEFAULT_CLUSTER`
   (`default`).
+- **Authentication.** Basic auth from the URL, a bearer token read from
+  `PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE` at each query (rotated tokens are picked up), headers from
+  `PAINDASH_PROMETHEUS_HEADERS` (`X-Scope-OrgID`...), and the CAs of `PAINDASH_PROMETHEUS_CA_FILE`
+  on top of the system ones. A non-JSON error (an authenticating proxy's 401 or 403) is reported
+  with the start of its body.
 - **Thanos.** Queries send `dedup=true` and `partial_response=false`: if a store is down, the sync
   fails and is retried, instead of concluding that a cluster stopped running. Prometheus ignores
   both parameters.
@@ -582,6 +587,8 @@ From [SECURITY.md](../SECURITY.md), and how the code enforces it:
 
 - **Read-only on clusters.** The inventory comes from a Prometheus-compatible API. There is no
   Kubernetes API access; the provided manifests do not even mount a ServiceAccount token.
+- **Prometheus API credentials** (in the URL or a token file) are never logged; HTTP client errors
+  print the URL without its password.
 - **Registry credentials** are used by syft to pull the running images. They are never logged;
   scanner errors are stored with URL query strings (pre-signed URLs) removed.
 - **Outbound traffic:** the Prometheus API, PostgreSQL, the registries, the grype database (or its

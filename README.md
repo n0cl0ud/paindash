@@ -82,7 +82,10 @@ Environment variables (the Helm chart maps its values to them).
 | Variable | Default | |
 |---|---|---|
 | `PAINDASH_DATABASE_URL`, or `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE` | — | PostgreSQL 14+ |
-| `PAINDASH_PROMETHEUS_URL` | — | Prometheus-compatible API with the kube-state-metrics series |
+| `PAINDASH_PROMETHEUS_URL` | — | Prometheus-compatible API with the kube-state-metrics series; basic auth as `https://user:password@host` |
+| `PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE` | — | file holding a bearer token for that API, read at each sync |
+| `PAINDASH_PROMETHEUS_CA_FILE` | — | PEM certificates trusted for that API, on top of the system ones |
+| `PAINDASH_PROMETHEUS_HEADERS` | — | `Name=value` headers sent to that API, comma-separated (e.g. `X-Scope-OrgID=tenant-1`) |
 | `PAINDASH_ENV_LABEL`, `PAINDASH_CLUSTER_LABEL` | `env`, `cluster` | series labels telling environments and clusters apart |
 | `PAINDASH_DEFAULT_ENV`, `PAINDASH_DEFAULT_CLUSTER` | —, `default` | for series without those labels (a single Prometheus) |
 | `PAINDASH_ENVS` | `prod,test,dev` | environment switcher order; the first one is scanned first |

@@ -1,6 +1,15 @@
 package inventory
 
-import "testing"
+import (
+	"context"
+	"encoding/json"
+	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestResolveOwners(t *testing.T) {
 	const cl = "prod-1"
@@ -95,6 +104,72 @@ func TestTag(t *testing.T) {
 	} {
 		if got := Tag(in); got != want {
 			t.Errorf("Tag(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// emptyResult answers every query with no series.
+func emptyResult(w http.ResponseWriter, r *http.Request) {
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": map[string]any{"result": []any{}}})
+}
+
+// Queries carry the headers and the bearer token of the moment: a rotated
+// token is picked up without a restart.
+func TestQueryAuth(t *testing.T) {
+	var auth, tenant string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth, tenant = r.Header.Get("Authorization"), r.Header.Get("X-Scope-OrgID")
+		if auth != "Bearer t2" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		emptyResult(w, r)
+	}))
+	defer srv.Close()
+	token := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(token, []byte("t1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p := &Prometheus{URL: srv.URL, BearerTokenFile: token, Headers: map[string]string{"X-Scope-OrgID": "tenant-1"}}
+	_, err := p.Snapshot(context.Background())
+	if want := "kube_pod_container_info: HTTP 401 Unauthorized: Unauthorized"; err == nil || err.Error() != want {
+		t.Errorf("err = %v, want %q", err, want)
+	}
+	if auth != "Bearer t1" || tenant != "tenant-1" {
+		t.Errorf("Authorization %q, X-Scope-OrgID %q", auth, tenant)
+	}
+	if err := os.WriteFile(token, []byte("t2"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Snapshot(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+// A Prometheus API behind a private CA is reached with NewClient only.
+func TestNewClientCA(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(emptyResult))
+	defer srv.Close()
+	dir := t.TempDir()
+	ca, junk := filepath.Join(dir, "ca.pem"), filepath.Join(dir, "junk.pem")
+	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(junk, []byte("not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for caFile, ok := range map[string]bool{"": false, ca: true} {
+		client, err := NewClient(caFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := (&Prometheus{URL: srv.URL, Client: client}).Snapshot(context.Background()); (err == nil) != ok {
+			t.Errorf("CA file %q: err = %v", caFile, err)
+		}
+	}
+	for _, f := range []string{junk, filepath.Join(dir, "missing.pem")} {
+		if _, err := NewClient(f); err == nil {
+			t.Errorf("%s: no error", f)
 		}
 	}
 }
