@@ -51,11 +51,13 @@ type Prometheus struct {
 	Log            *slog.Logger
 
 	exposureAvailable bool
-	unknown           map[string]bool // unclassified entrypoints already logged
+	warned            map[string]bool // warnings already logged
 }
 
 // ExposureAvailable reports whether the last snapshot found routing metrics
-// (Ingress, IngressRoute or LoadBalancer), i.e. whether "none" can be trusted.
+// (Ingress, IngressRoute or LoadBalancer) and, in every cluster with routes,
+// the EndpointSlice or Endpoints series that lead to the pods: whether "none"
+// can be trusted.
 func (t *Prometheus) ExposureAvailable() bool { return t.exposureAvailable }
 
 func (t *Prometheus) Name() string { return "prometheus" }
@@ -96,11 +98,12 @@ func (t *Prometheus) Snapshot(ctx context.Context) ([]model.Container, error) {
 
 // exposure maps each pod to its exposure: Ingresses (by class), Traefik
 // IngressRoute entrypoints and LoadBalancer Services give a level per Service,
-// endpoints give the pod IPs behind each Service, kube_pod_info maps the IPs
-// back to pods.
+// EndpointSlices name the pods behind each Service, and Endpoints (the default
+// of kube-state-metrics before v2.18.0) give their IPs, mapped back to pods
+// with kube_pod_info.
 func (t *Prometheus) exposure(ctx context.Context, sel string) (map[objKey]string, error) {
 	cl := t.clusterLabel()
-	queries := []string{"kube_service_status_load_balancer_ingress", "kube_endpoint_address", "kube_pod_info", "kube_ingress_info", "kube_ingress_path"}
+	queries := []string{"kube_service_status_load_balancer_ingress", "kube_endpoint_address", "kube_pod_info", "kube_ingress_info", "kube_ingress_path", "kube_endpointslice_endpoints"}
 	var entrypoints, routes []map[string]string
 	for _, kind := range []string{"ingressroute", "ingressroutetcp", "ingressrouteudp"} {
 		queries = append(queries, "kube_traefik_"+kind+"_entrypoint", "kube_traefik_"+kind+"_service")
@@ -126,8 +129,18 @@ func (t *Prometheus) exposure(ctx context.Context, sel string) (map[objKey]strin
 		}
 	}
 	lbs, endpoints, pods := series[queries[0]], series[queries[1]], series[queries[2]]
-	ingresses, paths := series[queries[3]], series[queries[4]]
-	t.exposureAvailable = len(entrypoints)+len(paths)+len(lbs) > 0
+	ingresses, paths, sliceEndpoints := series[queries[3]], series[queries[4]], series[queries[5]]
+	// "none" is only trusted where routes can be followed to pods: a cluster
+	// with routes but neither EndpointSlice nor Endpoints series (resources
+	// left out of kube-state-metrics) would show every workload unexposed.
+	routed, joined := clusters(cl, entrypoints, paths, lbs), clusters(cl, endpoints, sliceEndpoints)
+	t.exposureAvailable = len(routed) > 0
+	for c := range routed {
+		if !joined[c] {
+			t.exposureAvailable = false
+			t.warnOnce("cluster/"+c, "exposure unavailable: routes but no kube_endpointslice_endpoints or kube_endpoint_address series: enable the endpointslices resource of kube-state-metrics", "cluster", c)
+		}
+	}
 
 	routeLevel := map[objKey]string{} // (cluster, namespace, kind/ingressroute)
 	for _, e := range entrypoints {
@@ -175,14 +188,37 @@ func (t *Prometheus) exposure(ctx context.Context, sel string) (map[objKey]strin
 		k := objKey{lb[cl], lb["namespace"], lb["service"]}
 		svcLevel[k] = model.WiderExposure(svcLevel[k], lvl)
 	}
+	out := map[objKey]string{}
+	// An EndpointSlice names its pods, host network ones included. Its
+	// hostname, serving and terminating labels are wrong before
+	// kube-state-metrics v2.20.0: unused.
+	byBase := map[objKey]string{} // (cluster, namespace, slice name base); long names can share a base, the widest wins
+	for k, lvl := range svcLevel {
+		b := objKey{k.cluster, k.namespace, sliceBase(k.name)}
+		byBase[b] = model.WiderExposure(byBase[b], lvl)
+	}
+	for _, e := range sliceEndpoints {
+		m := sliceNameRe.FindStringSubmatch(e["endpointslice"])
+		if e["targetref_kind"] != "Pod" || m == nil {
+			continue
+		}
+		// Before v2.11.0 the slice series have no namespace label (a scrape
+		// can then add kube-state-metrics' own): the pod's is the Service's.
+		ns := cmpOr(e["targetref_namespace"], e["namespace"])
+		if lvl, ok := byBase[objKey{e[cl], ns, m[1]}]; ok {
+			pod := objKey{e[cl], ns, e["targetref_name"]}
+			out[pod] = model.WiderExposure(out[pod], lvl)
+		}
+	}
+	// Endpoints only give IPs: host network pods share their node's and
+	// cannot be told apart.
 	podByIP := map[[2]string]objKey{}
 	for _, p := range pods {
-		if p["pod_ip"] == "" || p["host_network"] == "true" { // host network pods share the node IP
+		if p["pod_ip"] == "" || p["host_network"] == "true" {
 			continue
 		}
 		podByIP[[2]string{p[cl], p["pod_ip"]}] = objKey{p[cl], p["namespace"], p["pod"]}
 	}
-	out := map[objKey]string{}
 	for _, e := range endpoints {
 		lvl, ok := svcLevel[objKey{e[cl], e["namespace"], e["endpoint"]}]
 		if !ok {
@@ -284,14 +320,37 @@ func (t *Prometheus) entrypointExposure(ep string) string {
 	case strings.HasSuffix(ep, "-internal") || strings.HasSuffix(ep, "-int"):
 		return model.ExposureInternal
 	}
-	if t.unknown == nil {
-		t.unknown = map[string]bool{}
-	}
-	if !t.unknown[ep] && t.Log != nil {
-		t.unknown[ep] = true
-		t.Log.Warn("unclassified Traefik entrypoint, treated as internet-facing: set PAINDASH_PUBLIC_ENTRYPOINTS", "entrypoint", ep)
-	}
+	t.warnOnce("entrypoint/"+ep, "unclassified Traefik entrypoint, treated as internet-facing: set PAINDASH_PUBLIC_ENTRYPOINTS", "entrypoint", ep)
 	return model.ExposureInternet
+}
+
+// warnOnce logs a warning the first time key is seen.
+func (t *Prometheus) warnOnce(key, msg string, args ...any) {
+	if t.warned == nil {
+		t.warned = map[string]bool{}
+	}
+	if !t.warned[key] && t.Log != nil {
+		t.warned[key] = true
+		t.Log.Warn(msg, args...)
+	}
+}
+
+// clusters lists the clusters that have series.
+func clusters(clusterLabel string, series ...[]map[string]string) map[string]bool {
+	m := map[string]bool{}
+	for _, s := range series {
+		for _, x := range s {
+			m[x[clusterLabel]] = true
+		}
+	}
+	return m
+}
+
+// sliceBase is the generateName prefix of a Service's EndpointSlices, as the
+// apiserver cuts it to keep room for 5 random characters in 63.
+func sliceBase(service string) string {
+	b := service + "-"
+	return b[:min(len(b), 58)]
 }
 
 type objKey struct{ cluster, namespace, name string }
@@ -323,6 +382,8 @@ var (
 	rsNameRe = regexp.MustCompile(`^(.+)-[bcdfghjklmnpqrstvwxz2456789]{6,10}$`)
 	// <cronjob>-<scheduled time in minutes>.
 	jobNameRe = regexp.MustCompile(`^(.+)-[0-9]{8,}$`)
+	// sliceBase(<service>) and 5 random characters of the same alphabet.
+	sliceNameRe = regexp.MustCompile(`^(.+)[bcdfghjklmnpqrstvwxz2456789]{5}$`)
 )
 
 // exported lists the objects that have a series, owned or not.

@@ -8,7 +8,8 @@ First public release.
   API; several clusters and environments by series labels, or a single Prometheus with defaults.
 - One scan per digest (syft SBOM stored, grype match), hourly vulnerability DB check and rematch of
   every stored SBOM, CISA KEV and FIRST EPSS enrichment.
-- Exposure from Ingresses (by class), LoadBalancer Services and Traefik IngressRoutes.
+- Exposure from Ingresses (by class), LoadBalancer Services and Traefik IngressRoutes, followed to
+  the pods through EndpointSlices (the kube-state-metrics default since v2.18.0) or Endpoints.
 - UI: To fix, Workloads, All vulnerabilities, Exceptions; scopes by namespace, component and
   exposure; promotion hints along a configurable chain; history per environment; live feed.
 - Exceptions as expiring OpenVEX "not affected" statements, exported as an OpenVEX document.

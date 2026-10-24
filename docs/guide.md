@@ -139,14 +139,16 @@ pods:
 | Ingress | class mapped to `internet` in `PAINDASH_INGRESS_CLASSES`; any other class, or none, unless it is internal | class mapped to `internal`, or an unlisted class whose name contains `internal` or `private` |
 | LoadBalancer Service | any other load balancer | private IP address, or hostname containing `internal` (AWS internal ELBs) |
 
-A route gives its level to the Service it targets, the Service's endpoints give it to the pods
-behind it, and the widest level wins: a workload with one public and one internal route is
-internet-facing. A finding's exposure is the widest among the workloads it affects. Unclassified
-Traefik entrypoints count as internet-facing (and are logged) rather than being understated.
+A route gives its level to the Service it targets, the Service's EndpointSlices (or Endpoints)
+give it to the pods behind it, and the widest level wins: a workload with one public and one
+internal route is internet-facing. A finding's exposure is the widest among the workloads it
+affects. Unclassified Traefik entrypoints count as internet-facing (and are logged) rather than
+being understated.
 
 When paindash finds none of the routing series (Traefik IngressRoute, Ingress paths, LoadBalancer
-ingress), exposure is **not configured**: the badges, the Exposure filter and the internet-facing
-numbers are hidden instead of showing every workload as "not exposed". See the
+ingress), or a cluster has routes but no series leading from its Services to its pods, exposure is
+**not configured**: the badges, the Exposure filter and the internet-facing numbers are hidden
+instead of showing every workload as "not exposed". See the
 [FAQ](#why-is-exposure-not-configured-or-my-app-not-exposed) and
 [Exposure derivation](architecture.md#exposure-derivation).
 
@@ -611,7 +613,10 @@ Other causes:
 "Not configured" means the last inventory sync found none of the routing series: Traefik
 IngressRoute entrypoints (which need the kube-state-metrics custom resource configuration in
 [deploy/README.md](../deploy/README.md#prerequisites)), `kube_ingress_path`, or
-`kube_service_status_load_balancer_ingress`. Check with `make snapshot` (the EXPOSURE column).
+`kube_service_status_load_balancer_ingress`. Or a cluster has some, but neither
+`kube_endpointslice_endpoints` nor `kube_endpoint_address`: its kube-state-metrics runs without the
+`endpointslices` resource (a default since v2.18.0) and without `endpoints`, and paindash logs
+"exposure unavailable" with the cluster. Check with `make snapshot` (the EXPOSURE column).
 
 A workload can be reachable and still show as not exposed:
 
@@ -619,7 +624,8 @@ A workload can be reachable and still show as not exposed:
   (Pomerium, for example), the proxy's pods are internet-facing, not the app's;
 - it is routed by the Gateway API (not supported yet);
 - it is behind the second or later Service of an IngressRoute route (only the first is exported);
-- its pods use the host network (they share the node's IP and are not attributed).
+- its pods use the host network and kube-state-metrics exports Endpoints but not EndpointSlices
+  (Endpoints only give IPs, and those pods share their node's).
 
 ### What happens when a workload is deleted?
 

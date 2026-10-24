@@ -109,7 +109,7 @@ Every sync runs instant queries (`/api/v1/query`) against the Prometheus-compati
 |---|---|
 | `kube_pod_container_info`, `kube_pod_init_container_info` | containers, image as deployed (`image_spec`), digest pulled (`image_id`) |
 | `kube_pod_owner`, `kube_replicaset_owner`, `kube_job_owner` | workload attribution |
-| `kube_pod_info`, `kube_endpoint_address`, `kube_service_status_load_balancer_ingress`, `kube_ingress_info`, `kube_ingress_path`, `kube_traefik_ingressroute{,tcp,udp}_{entrypoint,service}` | exposure |
+| `kube_service_status_load_balancer_ingress`, `kube_ingress_info`, `kube_ingress_path`, `kube_traefik_ingressroute{,tcp,udp}_{entrypoint,service}`, `kube_endpointslice_endpoints`, `kube_endpoint_address`, `kube_pod_info` | exposure |
 
 - **Environments and clusters** come from two series labels (`PAINDASH_ENV_LABEL`, default `env`;
   `PAINDASH_CLUSTER_LABEL`, default `cluster`). Queries carry `{env=~"prod|test|dev"}` built from
@@ -164,7 +164,7 @@ flowchart LR
     IR -->|"first Service of each route"| SVC["Service level<br/>widest wins"]
     ING["Ingress class<br/>PAINDASH_INGRESS_CLASSES"] -->|"backend Service of each path"| SVC
     LB["LoadBalancer ingress<br/>private IP or internal hostname"] --> SVC
-    SVC -->|"endpoint addresses"| POD["Pods, matched by IP<br/>host network ignored"]
+    SVC -->|"EndpointSlices, or Endpoints"| POD["Pods, by name<br/>or by IP"]
     POD -->|"widest over the pods"| CT["Workload container"]
 ```
 
@@ -174,13 +174,14 @@ flowchart LR
 | IngressRoute | the widest level of its entrypoints, given to the Service of each route (`service_namespace` when set, else the route's namespace); routes to a `TraefikService` are skipped |
 | Ingress | its class mapped by `PAINDASH_INGRESS_CLASSES` (`class=internet` or `class=internal`); an unlisted class, or none, is `internal` if its name contains `internal` or `private`, `internet` otherwise; given to the Service of each path (resource backends skipped) |
 | LoadBalancer Service | `internal` if its ingress IP is private (RFC 1918, `fc00::/7`) or its hostname contains `internal`; `internet` otherwise |
-| Service to pods | `kube_endpoint_address` IPs, mapped back to pods with `kube_pod_info`; host-network pods share the node IP and are skipped |
+| Service to pods | `kube_endpointslice_endpoints`: the pods named by `targetref_name`, in slices named after the Service (`<service>-` cut to 58 characters, then 5 random characters, as the apiserver generates them); and `kube_endpoint_address` IPs, mapped back to pods with `kube_pod_info`, where host-network pods share the node IP and are skipped. Both are read; the widest level wins |
 | Workload container | the widest level over its pods (replicas can differ during a rollout); `none` without any |
 
 HTTP, TCP and UDP routes are keyed by kind, so routes with the same name do not collide.
 `exposure_available` is recorded at each sync: true when at least one entrypoint, Ingress path or
-LoadBalancer series exists. When false, the UI hides exposure instead of showing every workload as
-`none`.
+LoadBalancer series exists, and every cluster that has some also has EndpointSlice or Endpoints
+series (a cluster without them is logged once). When false, the UI hides exposure instead of
+showing every workload as `none`.
 
 ## Scanning
 
@@ -617,7 +618,7 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 - **Memory.** The read dataset (every finding of every running image) is held in memory.
 - **Exposure.** No Gateway API routes yet; only the first Service of each IngressRoute route; Traefik
   IngressRoutes need the kube-state-metrics custom resource configuration; host-network pods are
-  not attributed; exposure stops at the Service a route targets.
+  only attributed through EndpointSlices; exposure stops at the Service a route targets.
 - **Authentication.** Pomerium, or none behind another authenticating proxy.
 - **Fix prompts.** GitHub repositories only.
 - **Rematch scope.** Images that stopped running are not rematched until they run again.

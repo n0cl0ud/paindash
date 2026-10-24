@@ -83,7 +83,10 @@ break ties between equal severities.
 "internal" hostname = internal) and Traefik IngressRoute entrypoints. Unknown entrypoints count as
 internet-facing (and are logged).
 **Why.** Understating exposure is the dangerous mistake; overstating it is merely noisy.
-**Implies.** Without routing metrics, the UI says "exposure not configured" instead of "none".
+**Implies.** Without routing metrics, or in a cluster with routes but no series leading to its pods,
+the UI says "exposure not configured" instead of "none". Services lead to pods through
+EndpointSlices (by pod name, host network pods included) and Endpoints (by IP, without them); a
+slice name shared by two long Service names gets the widest of their levels.
 
 ### 13. Fixed version of the installed release line
 **Decision.** Show, for each installed version, the lowest fixed version above it.

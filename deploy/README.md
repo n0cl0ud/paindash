@@ -17,8 +17,9 @@ unpacks image layers.
 kube-state-metrics, and its series are queryable through one `/api/v1/query` endpoint (Prometheus,
 Thanos Query, Mimir, VictoriaMetrics...). paindash reads `kube_pod_container_info`,
 `kube_pod_init_container_info`, `kube_pod_owner`, `kube_replicaset_owner`, `kube_job_owner`, and
-for exposure `kube_pod_info`, `kube_endpoint_address`, `kube_service_status_load_balancer_ingress`,
-`kube_ingress_info`, `kube_ingress_path` and the optional `kube_traefik_*` series below.
+for exposure `kube_service_status_load_balancer_ingress`, `kube_ingress_info`, `kube_ingress_path`,
+the optional `kube_traefik_*` series below, and `kube_endpointslice_endpoints` or
+`kube_endpoint_address` with `kube_pod_info` to find the pods behind each Service.
 
 - **Several clusters:** the series must carry an env label and a cluster label (default `env` and
   `cluster`, set with `prometheus.envLabel` / `prometheus.clusterLabel`). They are usually external
@@ -54,9 +55,10 @@ allowed to pull (`ecr:GetAuthorizationToken`, `ecr:BatchGetImage`,
 `serviceAccount.annotations.eks\.amazonaws\.com/role-arn`.
 
 **Exposure data.** Ingresses and LoadBalancer Services need nothing beyond the default
-kube-state-metrics series. Traefik IngressRoutes need its custom resource state config. With the
-`prometheus-community/kube-state-metrics` chart (under `kube-state-metrics:` in
-kube-prometheus-stack):
+kube-state-metrics series: EndpointSlices (a default resource since v2.18.0) or Endpoints (the
+default before) lead from each Service to its pods. Traefik IngressRoutes need its custom resource
+state config. With the `prometheus-community/kube-state-metrics` chart (under
+`kube-state-metrics:` in kube-prometheus-stack):
 
 ```yaml
 rbac:
@@ -276,8 +278,11 @@ its pods; the widest exposure wins.
 - **LoadBalancer Services:** internal when the load balancer has a private IP (RFC 1918, or
   `fc00::/7`) or a hostname containing `internal` (AWS internal ELBs), internet-facing otherwise.
 
-Pods on the host network are not attributed. When none of the routing series exist, paindash
-reports exposure as unavailable rather than marking every workload unexposed.
+EndpointSlices name the pods behind a Service, host network ones included. Endpoints only give
+IPs, which host network pods share with their node: with Endpoints alone, those pods are not
+attributed. When none of the routing series exist, or a cluster has routes but neither EndpointSlice
+nor Endpoints series (the log names it), paindash reports exposure as unavailable rather than
+marking workloads unexposed.
 
 ## Upgrades
 
