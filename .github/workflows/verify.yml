@@ -1,0 +1,213 @@
+---
+name: Verify
+# Reusable validation suite: quality, vulnerability audits, secret scan,
+# workflow lint and a scanned image build. Single source of truth for the PR
+# gate (pr-verify.yml) and the main build (docker.yml).
+on:
+  workflow_call:
+    inputs:
+      docker-build:
+        description: Build and scan the image (docker.yml does it itself before pushing)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+
+jobs:
+
+  # -- go ----------------------------------------------------------------------
+
+  go-quality:
+    name: go-quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false
+      timeout-minutes: 3
+
+    # web/embed.go embeds web/dist: an empty UI is enough to compile.
+    - name: Placeholder UI
+      run: mkdir -p web/dist && touch web/dist/index.html
+      timeout-minutes: 1
+
+    - name: Vet
+      run: go vet ./...
+      timeout-minutes: 5
+
+    - name: Test
+      run: go test -race ./...
+      timeout-minutes: 10
+
+    # Version pinned, module checksum verified by the Go checksum database.
+    - name: Vulnerability audit (govulncheck)
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+        govulncheck ./...
+      timeout-minutes: 5
+
+  # -- web ---------------------------------------------------------------------
+
+  web-quality:
+    name: web-quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    - name: Setup Node
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 24
+      timeout-minutes: 3
+
+    - name: Install (lockfile only, no install scripts)
+      run: npm ci --ignore-scripts --no-audit --no-fund
+      timeout-minutes: 5
+
+    - name: Typecheck + build
+      run: npm run build
+      timeout-minutes: 5
+
+    - name: Vulnerability audit (npm audit)
+      run: npm audit --audit-level=high
+      timeout-minutes: 3
+
+  # -- security ----------------------------------------------------------------
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # gitleaks needs full history to scan all commits.
+        fetch-depth: 0
+        persist-credentials: false
+      timeout-minutes: 2
+
+    # Installed directly rather than through gitleaks/gitleaks-action@v2, which
+    # needs a paid licence for organisations. Bump procedure:
+    #   curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v<NEW>/gitleaks_<NEW>_checksums.txt | grep linux_x64
+    - name: install gitleaks CLI (SHA256-verified)
+      run: |
+        GL_VERSION=8.21.4
+        GL_SHA256=3e169b49f7c519a269b8ff653c5248a8c82e8c74baaf035286915047200386a9
+        GL_TARBALL=gitleaks_${GL_VERSION}_linux_x64.tar.gz
+        curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/${GL_TARBALL}"
+        echo "${GL_SHA256}  ${GL_TARBALL}" | sha256sum -c -
+        sudo tar -xzf "${GL_TARBALL}" -C /usr/local/bin gitleaks
+        rm "${GL_TARBALL}"
+        gitleaks version
+      timeout-minutes: 2
+
+    - name: gitleaks scan
+      run: gitleaks detect --no-banner --redact --verbose --exit-code 1
+      timeout-minutes: 5
+
+  dependency-scan:
+    name: dependency-scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    # tools/ holds the build manifests of syft and grype: what they actually
+    # link is gated by the image scan (gobinary), which is precise, whereas a
+    # manifest scan would also flag modules that never reach the binaries.
+    - name: Trivy scan (go.mod, package-lock.json)
+      run: |
+        docker run --rm -v "$PWD":/repo ${{ env.TRIVY }} fs \
+          --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed \
+          --skip-dirs /repo/tools \
+          --exit-code 1 /repo
+      timeout-minutes: 10
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false
+      timeout-minutes: 3
+
+    # shellcheck (preinstalled on the runner) also checks every run: block.
+    - name: Lint workflows
+      run: |
+        go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        "$(go env GOPATH)/bin/actionlint"
+      timeout-minutes: 5
+
+  # -- docker ------------------------------------------------------------------
+
+  docker-build:
+    name: docker-build
+    if: inputs.docker-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    - name: Setup docker buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      timeout-minutes: 2
+
+    - name: Expose GitHub Runtime env vars
+      uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+      timeout-minutes: 2
+
+    - name: Build docker image (no push)
+      run: |
+        docker buildx build . \
+          --tag paindash:verify \
+          --cache-from type=gha,scope=paindash \
+          --cache-to type=gha,mode=max,scope=paindash \
+          --load
+      timeout-minutes: 20
+
+    - name: Trivy scan (image)
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ${{ env.TRIVY }} image \
+          --scanners vuln,secret --severity CRITICAL,HIGH --ignore-unfixed \
+          --exit-code 1 paindash:verify
+      timeout-minutes: 10

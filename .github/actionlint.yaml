@@ -1,0 +1,3 @@
+# paindash only uses the GitHub-hosted `ubuntu-24.04` runner: no custom labels.
+self-hosted-runner:
+  labels: []

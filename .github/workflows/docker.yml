@@ -1,0 +1,138 @@
+---
+name: Docker Push
+# Every push to main and every v* tag: verify.yml gate, then build, Trivy gate,
+# push to ghcr.io/<owner>/<repo> for linux/amd64 and linux/arm64.
+# Tags: main -> short commit sha and "main"; v1.2.3 -> "1.2.3" and "latest".
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+    - .gitignore
+    - README.md
+    - deploy/**
+    - .github/dependabot.yml
+    - .github/workflows/pr-*.yml
+    - .github/workflows/security-review.yml
+    - .github/workflows/audit-docker-digests.yml
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+
+jobs:
+
+  verify:
+    uses: ./.github/workflows/verify.yml
+    permissions:
+      contents: read
+    with:
+      docker-build: false
+
+  docker-push:
+    name: Docker Push
+    runs-on: ubuntu-24.04
+    needs: [verify]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    # Reproducible layer timestamps: buildx stamps files with the commit date
+    # instead of the build time.
+    - name: Set image, tags and SOURCE_DATE_EPOCH from the commit
+      run: |
+        epoch=$(git log -1 --pretty=%ct)
+        if [[ $GITHUB_REF == refs/tags/v* ]]; then
+          tag=${GITHUB_REF_NAME#v} extra=latest
+        else
+          tag=${GITHUB_SHA::7} extra=main
+        fi
+        {
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "TAG=$tag"
+          echo "EXTRA_TAG=$extra"
+          echo "SOURCE_DATE_EPOCH=$epoch"
+          echo "IMAGE_CREATED=$(date -u -d @"$epoch" +%Y-%m-%dT%H:%M:%SZ)"
+        } >> "$GITHUB_ENV"
+      timeout-minutes: 1
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      timeout-minutes: 2
+
+    - name: Setup docker buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      timeout-minutes: 2
+
+    - name: Expose GitHub Runtime env vars
+      uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+      timeout-minutes: 2
+
+    # Built into the local docker store (no attestations possible there) so
+    # trivy can gate it before anything reaches the registry.
+    - name: Build docker image
+      run: |
+        docker buildx build . \
+          --tag "${IMAGE}:${TAG}" \
+          --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+          --label org.opencontainers.image.version="${TAG}" \
+          --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+          --label org.opencontainers.image.created="${IMAGE_CREATED}" \
+          --label org.opencontainers.image.licenses=Apache-2.0 \
+          --cache-from type=gha,scope=paindash \
+          --cache-to type=gha,mode=max,scope=paindash \
+          --load
+      timeout-minutes: 20
+
+    - name: Trivy scan (image)
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ${{ env.TRIVY }} image \
+          --scanners vuln,secret --severity CRITICAL,HIGH --ignore-unfixed \
+          --exit-code 1 "${IMAGE}:${TAG}"
+      timeout-minutes: 10
+
+    # Same build for both platforms (amd64 replayed from the builder's cache,
+    # arm64 cross-compiled, see the Dockerfile), straight to the registry with
+    # SLSA provenance and an SBOM attached to the image index.
+    - name: Push docker image
+      run: |
+        docker buildx build . \
+          --platform linux/amd64,linux/arm64 \
+          --tag "${IMAGE}:${TAG}" \
+          --tag "${IMAGE}:${EXTRA_TAG}" \
+          --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+          --label org.opencontainers.image.version="${TAG}" \
+          --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+          --label org.opencontainers.image.created="${IMAGE_CREATED}" \
+          --label org.opencontainers.image.licenses=Apache-2.0 \
+          --cache-from type=gha,scope=paindash \
+          --attest type=provenance,mode=max \
+          --attest type=sbom,generator=docker/buildkit-syft-scanner:1.12.0@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9 \
+          --metadata-file /tmp/build-metadata.json \
+          --push
+        digest=$(jq -r '."containerimage.digest"' /tmp/build-metadata.json)
+        {
+          echo "### ${IMAGE}:${TAG}"
+          echo
+          echo '```sh'
+          echo "helm upgrade --install paindash deploy/helm/paindash --set image.tag=${TAG} --set image.digest=${digest}"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+      timeout-minutes: 10

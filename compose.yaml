@@ -1,0 +1,33 @@
+# The demo, nothing else to install: `docker compose --profile demo up --build`,
+# then http://localhost:8080 (simulated clusters, scanner and CVEs).
+# Development: `docker compose up -d` (the database only), then `make demo`.
+# Data lives in memory: every restart starts from a clean demo.
+services:
+  paindash:
+    profiles: [demo]
+    build: .
+    image: paindash:local
+    environment:
+      PAINDASH_DATABASE_URL: postgres://paindash:paindash@postgres:5432/paindash
+      PAINDASH_DEMO: "1"
+      PAINDASH_AUTH: disabled
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: paindash
+      POSTGRES_PASSWORD: paindash
+      POSTGRES_DB: paindash
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "paindash"]
+      interval: 1s
+      retries: 30

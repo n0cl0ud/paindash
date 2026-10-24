@@ -1,0 +1,16 @@
+apiVersion: v2
+name: paindash
+description: CVE dashboard of the images actually running in Kubernetes, inventoried through kube-state-metrics.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/n0cl0ud/paindash
+sources:
+- https://github.com/n0cl0ud/paindash
+keywords:
+- cve
+- vulnerability
+- sbom
+- grype
+- syft
+- kube-state-metrics

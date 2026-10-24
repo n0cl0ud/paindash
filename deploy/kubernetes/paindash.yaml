@@ -1,0 +1,181 @@
+# paindash: plain manifests equivalent to the Helm chart defaults.
+# Edit every line marked EDIT, then:
+#   kubectl apply -f paindash.yaml
+#   kubectl -n paindash create secret generic paindash-db --from-literal=url='postgres://USER:PASSWORD@HOST:5432/paindash?sslmode=require'
+# The pod starts once the Secret exists. Other settings: the PAINDASH_* variables
+# of the project README, or their chart equivalents in ../helm/paindash/values.yaml.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paindash
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: paindash
+  namespace: paindash
+  labels:
+    app.kubernetes.io/name: paindash
+# paindash never calls the Kubernetes API.
+automountServiceAccountToken: false
+---
+# grype vulnerability DB (~3 GB), kept across restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paindash-cache
+  namespace: paindash
+  labels:
+    app.kubernetes.io/name: paindash
+spec:
+  accessModes:
+  - ReadWriteOnce
+  # storageClassName: standard  # EDIT if the cluster has no default StorageClass
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paindash
+  namespace: paindash
+  labels:
+    app.kubernetes.io/name: paindash
+spec:
+  # One pod: it runs the single scan pipeline and holds a ReadWriteOnce cache.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: paindash
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: paindash
+    spec:
+      serviceAccountName: paindash
+      # No Kubernetes API access: the inventory comes from Prometheus.
+      automountServiceAccountToken: false
+      # Keeps Service variables out of the PAINDASH_ namespace.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: paindash
+        image: ghcr.io/n0cl0ud/paindash:0.1.0
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PAINDASH_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: paindash-db
+              key: url
+        # EDIT: Prometheus-compatible API with the kube-state-metrics series,
+        # e.g. http://prometheus-operated.monitoring.svc:9090 or a Thanos Query.
+        - name: PAINDASH_PROMETHEUS_URL
+          value: PROMETHEUS_URL
+        # EDIT: single Prometheus without env/cluster labels on its series:
+        # uncomment and name the env.
+        # - name: PAINDASH_DEFAULT_ENV
+        #   value: prod
+        - name: PAINDASH_AUTH
+          value: pomerium
+        # EDIT: Pomerium JWKS (https://<authenticate host>/.well-known/pomerium/jwks.json)
+        # and the route host as audience. Or PAINDASH_AUTH=disabled, only behind
+        # another authenticating proxy (see README.md).
+        - name: PAINDASH_POMERIUM_JWKS_URL
+          value: POMERIUM_JWKS_URL
+        - name: PAINDASH_POMERIUM_AUDIENCE
+          value: POMERIUM_AUDIENCE
+        # EDIT: private images. Mount a kubernetes.io/dockerconfigjson Secret
+        # (volume pull-secret below) and point to it:
+        # - name: PAINDASH_PULL_SECRET
+        #   value: /etc/paindash/pull/.dockerconfigjson
+        # syft unpacks image layers under TMPDIR; tools writing under HOME get the same volume.
+        - name: TMPDIR
+          value: /scratch
+        - name: HOME
+          value: /scratch
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: metrics
+          # /readyz waits up to 3 s for a pooled database connection.
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          periodSeconds: 20
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+            ephemeral-storage: 2Gi
+          limits:
+            memory: 4Gi
+            ephemeral-storage: 12Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: scratch
+          mountPath: /scratch
+        # The image sets GRYPE_DB_CACHE_DIR=/var/cache/paindash/grype.
+        - name: cache
+          mountPath: /var/cache/paindash
+        # - name: pull-secret
+        #   mountPath: /etc/paindash/pull
+        #   readOnly: true
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: cache
+        persistentVolumeClaim:
+          claimName: paindash-cache
+      # - name: pull-secret
+      #   secret:
+      #     secretName: regcred  # EDIT: existing kubernetes.io/dockerconfigjson Secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paindash
+  namespace: paindash
+  labels:
+    app.kubernetes.io/name: paindash
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: paindash
+  ports:
+  # UI and API, behind the authenticating proxy.
+  - name: http
+    port: 8080
+    targetPort: http
+    protocol: TCP
+  # /metrics, /healthz and /readyz: never route it through the proxy.
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP

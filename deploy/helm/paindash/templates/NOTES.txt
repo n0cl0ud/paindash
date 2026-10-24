@@ -1,0 +1,37 @@
+{{- $fullname := include "paindash.fullname" . -}}
+paindash {{ .Chart.AppVersion }} is deployed as {{ $fullname }} in namespace {{ .Release.Namespace }}.
+{{- if .Values.demo.enabled }}
+
+Demo mode: simulated clusters and scanner, fake CVEs (CVE-2099-*). Nothing real is scanned.
+{{- else }}
+
+The first start downloads the grype DB (~3 GB) before scanning the running images:
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ $fullname }} -f
+{{- end }}
+{{- if eq .Values.auth.mode "disabled" }}
+
+WARNING: authentication is disabled. Anyone reaching port 8080 reads everything and records
+exceptions as "anonymous". Only expose it behind an authenticating proxy.
+Local access:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ $fullname }} 8080:8080
+then open http://localhost:8080.
+{{- else }}
+
+Access goes through Pomerium: route https://<host> to http://{{ $fullname }}.{{ .Release.Namespace }}.svc:8080
+with pass_identity_headers: true and timeout: 0s (/api/stream is long-lived). Requests without a valid
+Pomerium JWT are rejected, port-forward included.
+{{- if not (and .Values.auth.pomerium.jwksUrl .Values.auth.pomerium.audience) }}
+
+WARNING: auth.mode is "pomerium" but auth.pomerium.jwksUrl or auth.pomerium.audience is empty:
+the pod exits at startup. Set both, or auth.mode=disabled behind another authenticating proxy.
+{{- end }}
+{{- end }}
+{{- if and (not .Values.persistence.enabled) (not .Values.demo.enabled) }}
+
+Persistence is disabled: the grype DB is downloaded again on every restart and counts against
+the pod's ephemeral storage (raise resources.limits.ephemeral-storage by ~5Gi).
+{{- end }}
+{{- if .Values.ingress.enabled }}
+
+The Ingress routes to port 8080 only. Port 9090 (/metrics, probes) must stay internal.
+{{- end }}

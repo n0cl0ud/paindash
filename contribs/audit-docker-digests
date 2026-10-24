@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# code: language=bash insertSpaces=true tabSize=2
+set -euo pipefail
+
+# =============================================================================
+# contribs/audit-docker-digests
+# =============================================================================
+# Audits every `<image>:<tag>@sha256:<hex>` pin of the Dockerfile (node,
+# golang, alpine) against the registry's current manifest. Catches digest
+# drift: when an image tag (e.g. alpine:3.24) is republished with security
+# fixes, our Dockerfile still points to the OLD digest until it is re-pinned.
+#
+# Why: Dependabot only follows `:tag` changes, a tag republished with a new
+# digest is invisible to it. This script fills that gap.
+#
+# The pinned and audited digest is the one of the manifest LIST (index), the
+# digest returned for `<image>:<tag>` itself, not a per-arch one.
+#
+# Modes:
+#   --check        Exits 1 if a pin is stale, 0 otherwise (default).
+#   --fix          Rewrites the file in place with the latest digest.
+#   --platform=P   Accepted for symmetry: the index covers every platform,
+#                  this only changes the log text.
+#
+# Needs the `docker` CLI (buildx) and `jq`.
+# =============================================================================
+
+FILES=("Dockerfile")
+MODE="check"
+PLATFORM="linux/amd64"
+
+for arg in "$@"; do
+  case "${arg}" in
+    --check) MODE="check" ;;
+    --fix) MODE="fix" ;;
+    --platform=*) PLATFORM="${arg#--platform=}" ;;
+    *)
+      echo "Unknown argument: ${arg}" >&2
+      echo "Usage: $0 [--check|--fix] [--platform=os/arch]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "${ROOT}"
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "✗ docker CLI not found on the PATH." >&2
+  exit 2
+fi
+if ! command -v jq >/dev/null 2>&1; then
+  echo "✗ jq not found on the PATH." >&2
+  exit 2
+fi
+
+# Matches `<image_ref>:<tag>@sha256:<64-hex>`. The tag's character class
+# includes `${}` in case the tag is a build ARG reference. Bare `@sha256:`
+# mentions outside an image reference are NOT matched (commit SHAs, action
+# pins...).
+PIN_RE='([a-zA-Z0-9./_-]+:[a-zA-Z0-9._${}-]+)@sha256:([a-f0-9]{64})'
+
+get_current_index_digest() {
+  local image_ref="$1" digest=""
+
+  # buildx imagetools resolves the manifest list (index) digest directly,
+  # without pulling the image.
+  if digest=$(docker buildx imagetools inspect "${image_ref}" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest // empty'); then
+    if [[ -n "${digest}" ]]; then
+      echo "${digest}"
+      return 0
+    fi
+  fi
+
+  # Fallback: docker manifest inspect --verbose gives the index digest in
+  # Descriptor.digest when the reference is a list.
+  local raw
+  if ! raw=$(docker manifest inspect --verbose "${image_ref}" 2>/dev/null); then
+    echo "✗ cannot inspect the manifest of ${image_ref}" >&2
+    return 1
+  fi
+  digest=$(echo "${raw}" | jq -r 'if type=="array" then .[0].Descriptor.digest else .Descriptor.digest end // empty' 2>/dev/null || true)
+  if [[ -z "${digest}" || "${digest}" == "null" ]]; then
+    echo "✗ cannot resolve the index digest of ${image_ref}" >&2
+    return 1
+  fi
+  echo "${digest}"
+}
+
+# Resolves `ARG NAME=default` so that `python:${PY_VERSION}` becomes a
+# queryable `python:3.12`, while keeping the ORIGINAL string (with the literal
+# `${...}`) for the in-place replacement of --fix.
+resolve_arg_refs() {
+  local -n arg_defaults_ref="$1"
+  local ref="$2" name value
+  for name in "${!arg_defaults_ref[@]}"; do
+    value="${arg_defaults_ref[${name}]}"
+    ref="${ref//\$\{${name}\}/${value}}"
+    ref="${ref//\$${name}/${value}}"
+  done
+  echo "${ref}"
+}
+
+# audit_file <path>: audits every `@sha256:...` pin of <path> and updates the
+# global $drift_count. With --fix, rewrites the file in place.
+audit_file() {
+  local file="$1"
+  local -A arg_defaults=()
+
+  while IFS= read -r line; do
+    if [[ "${line}" =~ ^ARG[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      arg_defaults["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+    fi
+  done < "${file}"
+
+  # Pins: imageRefLiteral|imageRefResolved|pinnedDigest|lineNo
+  local pins=()
+  local lineno=0
+  while IFS= read -r line; do
+    lineno=$((lineno + 1))
+    if [[ "${line}" =~ ${PIN_RE} ]]; then
+      local image_ref_literal="${BASH_REMATCH[1]}"
+      local pinned_digest="sha256:${BASH_REMATCH[2]}"
+      local image_ref_resolved
+      image_ref_resolved=$(resolve_arg_refs arg_defaults "${image_ref_literal}")
+      pins+=("${image_ref_literal}|${image_ref_resolved}|${pinned_digest}|${lineno}")
+    fi
+  done < "${file}"
+
+  if [[ ${#pins[@]} -eq 0 ]]; then
+    echo "No \`@sha256:...\` pin in ${file}. Nothing to audit."
+    echo ""
+    return 0
+  fi
+
+  echo "Found ${#pins[@]} pin(s) in ${file}. (--platform=${PLATFORM}: the index covers every platform.)"
+  echo ""
+
+  local pin updated=0
+  for pin in "${pins[@]}"; do
+    IFS='|' read -r image_ref_literal image_ref_resolved pinned_digest pin_lineno <<< "${pin}"
+
+    echo "  • Inspecting ${image_ref_resolved}..."
+    local latest_digest
+    latest_digest=$(get_current_index_digest "${image_ref_resolved}") || exit 2
+
+    if [[ "${pinned_digest}" == "${latest_digest}" ]]; then
+      echo "  ✓ ${file}:${pin_lineno}  ${image_ref_resolved}  up to date"
+      continue
+    fi
+
+    drift_count=$((drift_count + 1))
+    echo "  ✗ ${file}:${pin_lineno}  ${image_ref_resolved}  STALE"
+    echo "      pinned:  ${pinned_digest}"
+    echo "      current: ${latest_digest}"
+
+    if [[ "${MODE}" == "fix" ]]; then
+      local old_ref="${image_ref_literal}@${pinned_digest}"
+      local new_ref="${image_ref_literal}@${latest_digest}"
+      sed -i.bak "s#${old_ref}#${new_ref}#" "${file}"
+      rm -f "${file}.bak"
+      updated=$((updated + 1))
+    fi
+  done
+
+  total_pins=$((total_pins + ${#pins[@]}))
+  echo ""
+
+  if [[ "${MODE}" == "fix" && ${updated} -gt 0 ]]; then
+    echo "✓ ${updated} pin(s) updated in ${file}. Review with: git diff ${file}"
+    echo ""
+  fi
+}
+
+drift_count=0
+total_pins=0
+scanned=0
+
+for f in "${FILES[@]}"; do
+  if [[ ! -f "${f}" ]]; then
+    continue
+  fi
+  scanned=$((scanned + 1))
+  audit_file "${f}"
+done
+
+if [[ ${scanned} -eq 0 ]]; then
+  echo "✗ None of the expected Dockerfiles was found: ${FILES[*]}" >&2
+  exit 2
+fi
+
+if [[ "${MODE}" == "fix" ]]; then
+  if [[ ${drift_count} -eq 0 ]]; then
+    echo "✓ All ${total_pins} pin(s) are up to date, nothing to fix."
+  else
+    echo "✓ Drift fixed on ${drift_count} pin(s) in $(printf '%s ' "${FILES[@]}")."
+  fi
+  exit 0
+fi
+
+if [[ ${drift_count} -eq 0 ]]; then
+  echo "✓ All ${total_pins} digest pin(s) are up to date."
+  exit 0
+fi
+
+echo "✗ ${drift_count} stale digest pin(s)."
+echo "  Fix locally with: contribs/audit-docker-digests --fix"
+exit 1

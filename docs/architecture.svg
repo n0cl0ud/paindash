@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 964" width="1400" height="964" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" role="img" aria-labelledby="title desc">
+<title id="title">paindash architecture</title>
+<desc id="desc">kube-state-metrics in each cluster feeds a Prometheus-compatible API; paindash syncs the inventory every 30 seconds, scans each new image digest with syft and grype, enriches findings with CISA KEV and FIRST EPSS, rematches every stored SBOM when the vulnerability database changes, stores everything in PostgreSQL and serves a web UI with a live feed, Prometheus metrics and fix prompts.</desc>
+<style>.mono{font-family:ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace}</style>
+<defs>
+<linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a0e1a"/><stop offset="50%" stop-color="#0d1220"/><stop offset="100%" stop-color="#0a0f1e"/></linearGradient>
+<pattern id="dotGrid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="0.8" fill="#1e3a5f" opacity="0.35"/></pattern>
+<linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a2744"/><stop offset="100%" stop-color="#141e35"/></linearGradient>
+<linearGradient id="cardGradSub" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#162040"/><stop offset="100%" stop-color="#111a30"/></linearGradient>
+<linearGradient id="blueNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4facfe"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient>
+<linearGradient id="pinkNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#e11d48"/></linearGradient>
+<linearGradient id="purpleNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient>
+<linearGradient id="orangeNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient>
+<linearGradient id="cyanNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient>
+<linearGradient id="redNodeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f87171"/><stop offset="100%" stop-color="#dc2626"/></linearGradient>
+<filter id="blueGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.31  0 0 0 0 0.51  0 0 0 0 0.96  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="pinkGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.88  0 0 0 0 0.07  0 0 0 0 0.29  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="purpleGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.49  0 0 0 0 0.24  0 0 0 0 0.93  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="orangeGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.96  0 0 0 0 0.62  0 0 0 0 0.04  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="cyanGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.02  0 0 0 0 0.71  0 0 0 0 0.83  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="greenGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.06  0 0 0 0 0.73  0 0 0 0 0.51  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="redGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.94  0 0 0 0 0.27  0 0 0 0 0.27  0 0 0 0.45 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="cardShadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/></filter>
+<filter id="nodeShadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.5"/></filter>
+<marker id="arrowBlue" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#4facfe"/></marker>
+<marker id="arrowPink" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#fb7185"/></marker>
+<marker id="arrowCyan" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#22d3ee"/></marker>
+<marker id="arrowOrange" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#fbbf24"/></marker>
+<marker id="arrowPurple" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#a78bfa"/></marker>
+<marker id="arrowWhite" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#94a3b8"/></marker>
+<marker id="mkCyan" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#22d3ee"/></marker>
+<marker id="mkViolet" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#a78bfa"/></marker>
+<marker id="mkAmber" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#fbbf24"/></marker>
+<marker id="mkRed" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f87171"/></marker>
+<marker id="mkBlue" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#4facfe"/></marker>
+<marker id="mkGreen" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#34d399"/></marker>
+<marker id="mkSlate" viewBox="0 0 12 8" refX="10" refY="4" markerWidth="11" markerHeight="7.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#94a3b8"/></marker>
+<linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>
+<linearGradient id="titleGrad2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#c4b5fd"/></linearGradient>
+<linearGradient id="coreGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c1a44"/><stop offset="100%" stop-color="#131832"/></linearGradient>
+<linearGradient id="coreStroke" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="60%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>
+<linearGradient id="coreTopLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0"/><stop offset="50%" stop-color="#ddd6fe" stop-opacity="0.9"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
+<linearGradient id="fadeL" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0.6"/></linearGradient>
+<linearGradient id="fadeR" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.6"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/></linearGradient>
+<linearGradient id="fadeH" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1e3a5f" stop-opacity="0"/><stop offset="50%" stop-color="#334e7a"/><stop offset="100%" stop-color="#1e3a5f" stop-opacity="0"/></linearGradient>
+<radialGradient id="ambViolet"><stop offset="0%" stop-color="#7c3aed" stop-opacity="0.13"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/></radialGradient>
+<radialGradient id="ambCyan"><stop offset="0%" stop-color="#06b6d4" stop-opacity="0.08"/><stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/></radialGradient>
+<radialGradient id="ambGreen"><stop offset="0%" stop-color="#10b981" stop-opacity="0.07"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient>
+<linearGradient id="fl1" gradientUnits="userSpaceOnUse" x1="110" y1="426" x2="110" y2="554"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>
+<linearGradient id="fl2" gradientUnits="userSpaceOnUse" x1="394" y1="602" x2="452" y2="602"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+<linearGradient id="fl3" gradientUnits="userSpaceOnUse" x1="746" y1="436" x2="792" y2="436"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#f87171"/></linearGradient>
+<linearGradient id="fl4" gradientUnits="userSpaceOnUse" x1="0" y1="554" x2="0" y2="484"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+<linearGradient id="fl5" gradientUnits="userSpaceOnUse" x1="0" y1="484" x2="0" y2="554"><stop offset="0%" stop-color="#f87171"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+<linearGradient id="fl6" gradientUnits="userSpaceOnUse" x1="196" y1="602" x2="270" y2="602"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#67e8f9"/></linearGradient>
+<linearGradient id="fl7" gradientUnits="userSpaceOnUse" x1="0" y1="672" x2="0" y2="716"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#4facfe"/></linearGradient>
+<linearGradient id="fl8" gradientUnits="userSpaceOnUse" x1="938" y1="602" x2="1032" y2="602"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#34d399"/></linearGradient>
+<linearGradient id="fl9" gradientUnits="userSpaceOnUse" x1="1184" y1="518" x2="1240" y2="518"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#4facfe"/></linearGradient>
+<linearGradient id="fl10" gradientUnits="userSpaceOnUse" x1="1184" y1="602" x2="1240" y2="602"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#4facfe"/></linearGradient>
+<linearGradient id="fl11" gradientUnits="userSpaceOnUse" x1="1184" y1="686" x2="1240" y2="686"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#4facfe"/></linearGradient>
+<linearGradient id="fl12" gradientUnits="userSpaceOnUse" x1="1050" y1="236" x2="1094" y2="236"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+</defs>
+<rect width="1400" height="964" fill="url(#bgGrad)"/>
+<rect width="1400" height="964" fill="url(#dotGrid)"/>
+<g font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+<rect x="579.316" y="18" width="241.368" height="24" rx="12" fill="#a78bfa" fill-opacity="0.06" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.45"/>
+<text x="700" y="34.5" font-size="10.5" fill="#a78bfa" font-weight="700" text-anchor="middle" letter-spacing="2.5">OPEN SOURCE · APACHE-2.0</text>
+<line x1="449.316" y1="30" x2="565.316" y2="30" stroke="url(#fadeL)" stroke-width="1"/>
+<line x1="834.684" y1="30" x2="950.684" y2="30" stroke="url(#fadeR)" stroke-width="1"/>
+<text x="700" y="86" font-size="36" fill="url(#titleGrad)" font-weight="800" text-anchor="middle" letter-spacing="-0.5">paindash architecture</text>
+<text x="700" y="114" font-size="14.5" fill="#94a3b8" text-anchor="middle">The CVEs of what actually runs on your Kubernetes clusters, per environment, in real time</text>
+<rect x="148.19" y="134" width="184.777" height="28" rx="14" fill="#0f1729" stroke="#1e3a5f" stroke-width="1"/>
+<circle cx="164.19" cy="148" r="8.8" fill="#34d399" opacity="0.14"/>
+<circle cx="164.19" cy="148" r="5.6" fill="#34d399" opacity="0.22"/>
+<circle cx="164.19" cy="148" r="4" fill="#34d399"/>
+<text x="176.19" y="152.5" font-size="12" fill="#cbd5e1" font-weight="500">No agent in the clusters</text>
+<rect x="344.967" y="134" width="237.707" height="28" rx="14" fill="#0f1729" stroke="#1e3a5f" stroke-width="1"/>
+<circle cx="360.967" cy="148" r="8.8" fill="#a78bfa" opacity="0.14"/>
+<circle cx="360.967" cy="148" r="5.6" fill="#a78bfa" opacity="0.22"/>
+<circle cx="360.967" cy="148" r="4" fill="#a78bfa"/>
+<text x="372.967" y="152.5" font-size="12" fill="#cbd5e1" font-weight="500">Each image digest scanned once</text>
+<rect x="594.674" y="134" width="158.508" height="28" rx="14" fill="#0f1729" stroke="#1e3a5f" stroke-width="1"/>
+<circle cx="610.674" cy="148" r="8.8" fill="#22d3ee" opacity="0.14"/>
+<circle cx="610.674" cy="148" r="5.6" fill="#22d3ee" opacity="0.22"/>
+<circle cx="610.674" cy="148" r="4" fill="#22d3ee"/>
+<text x="622.674" y="152.5" font-size="12" fill="#cbd5e1" font-weight="500">Live feed over SSE</text>
+<rect x="765.182" y="134" width="217.269" height="28" rx="14" fill="#0f1729" stroke="#1e3a5f" stroke-width="1"/>
+<circle cx="781.182" cy="148" r="8.8" fill="#f87171" opacity="0.14"/>
+<circle cx="781.182" cy="148" r="5.6" fill="#f87171" opacity="0.22"/>
+<circle cx="781.182" cy="148" r="4" fill="#f87171"/>
+<text x="793.182" y="152.5" font-size="12" fill="#cbd5e1" font-weight="500">Actively exploited (KEV) first</text>
+<rect x="994.45" y="134" width="257.36" height="28" rx="14" fill="#0f1729" stroke="#1e3a5f" stroke-width="1"/>
+<circle cx="1010.45" cy="148" r="8.8" fill="#4facfe" opacity="0.14"/>
+<circle cx="1010.45" cy="148" r="5.6" fill="#4facfe" opacity="0.22"/>
+<circle cx="1010.45" cy="148" r="4" fill="#4facfe"/>
+<text x="1022.45" y="152.5" font-size="12" fill="#cbd5e1" font-weight="500">Read-only on clusters and registries</text>
+<ellipse cx="604" cy="517" rx="470" ry="260" fill="url(#ambViolet)"/>
+<ellipse cx="110" cy="420" rx="200" ry="260" fill="url(#ambCyan)"/>
+<ellipse cx="1200" cy="600" rx="230" ry="280" fill="url(#ambGreen)"/>
+<rect x="24" y="192" width="172" height="234" rx="14" fill="url(#cardGradSub)" fill-opacity="0.7" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="4,3"/>
+<rect x="38" y="181" width="155.085" height="22" rx="6" fill="#0b1020" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.5"/>
+<text x="115.542" y="195.5" font-size="9" fill="#22d3ee" font-weight="700" text-anchor="middle" letter-spacing="1.3">KUBERNETES CLUSTERS</text>
+<rect x="38" y="212" width="144" height="58" rx="9" fill="url(#cardGrad)" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3" filter="url(#cardShadow)"/>
+<rect x="38" y="220" width="3.5" height="42" rx="1.75" fill="#22d3ee"/>
+<g transform="translate(56,232) scale(0.8)" fill="none" stroke="#22d3ee" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8 L7,-4 L7,4 L0,8 L-7,4 L-7,-4 Z M-7,-4 L0,0 L7,-4 M0,0 L0,8"/></g>
+<text x="70" y="236.5" font-size="13.5" font-weight="700" fill="#f1f5f9">prod<tspan font-weight="400" fill="#64748b" font-size="12"> cluster</tspan></text>
+<circle cx="168" cy="232" r="7.7" fill="#34d399" opacity="0.14"/>
+<circle cx="168" cy="232" r="4.9" fill="#34d399" opacity="0.22"/>
+<circle cx="168" cy="232" r="3.5" fill="#34d399"/>
+<rect x="50" y="244" width="121.8" height="18" rx="5" fill="#0b1222" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.35"/>
+<text x="110.9" y="256.5" font-size="10" fill="#22d3ee" font-weight="600" text-anchor="middle" class="mono">kube-state-metrics</text>
+<rect x="38" y="280" width="144" height="58" rx="9" fill="url(#cardGrad)" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3" filter="url(#cardShadow)"/>
+<rect x="38" y="288" width="3.5" height="42" rx="1.75" fill="#22d3ee"/>
+<g transform="translate(56,300) scale(0.8)" fill="none" stroke="#22d3ee" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8 L7,-4 L7,4 L0,8 L-7,4 L-7,-4 Z M-7,-4 L0,0 L7,-4 M0,0 L0,8"/></g>
+<text x="70" y="304.5" font-size="13.5" font-weight="700" fill="#f1f5f9">test<tspan font-weight="400" fill="#64748b" font-size="12"> cluster</tspan></text>
+<circle cx="168" cy="300" r="7.7" fill="#34d399" opacity="0.14"/>
+<circle cx="168" cy="300" r="4.9" fill="#34d399" opacity="0.22"/>
+<circle cx="168" cy="300" r="3.5" fill="#34d399"/>
+<rect x="50" y="312" width="121.8" height="18" rx="5" fill="#0b1222" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.35"/>
+<text x="110.9" y="324.5" font-size="10" fill="#22d3ee" font-weight="600" text-anchor="middle" class="mono">kube-state-metrics</text>
+<rect x="38" y="348" width="144" height="58" rx="9" fill="url(#cardGrad)" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3" filter="url(#cardShadow)"/>
+<rect x="38" y="356" width="3.5" height="42" rx="1.75" fill="#22d3ee"/>
+<g transform="translate(56,368) scale(0.8)" fill="none" stroke="#22d3ee" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8 L7,-4 L7,4 L0,8 L-7,4 L-7,-4 Z M-7,-4 L0,0 L7,-4 M0,0 L0,8"/></g>
+<text x="70" y="372.5" font-size="13.5" font-weight="700" fill="#f1f5f9">dev<tspan font-weight="400" fill="#64748b" font-size="12"> cluster</tspan></text>
+<circle cx="168" cy="368" r="7.7" fill="#34d399" opacity="0.14"/>
+<circle cx="168" cy="368" r="4.9" fill="#34d399" opacity="0.22"/>
+<circle cx="168" cy="368" r="3.5" fill="#34d399"/>
+<rect x="50" y="380" width="121.8" height="18" rx="5" fill="#0b1222" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.35"/>
+<text x="110.9" y="392.5" font-size="10" fill="#22d3ee" font-weight="600" text-anchor="middle" class="mono">kube-state-metrics</text>
+<path d="M110,427 L110,552" fill="none" stroke="url(#fl1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkCyan)"/>
+<rect x="27" y="455" width="166" height="70" rx="10" fill="#0b1020" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.55"/>
+<text x="110" y="471" font-size="10.5" fill="#22d3ee" font-weight="600" text-anchor="middle" class="mono">kube_pod_container_info</text>
+<text x="110" y="486" font-size="10.5" fill="#cbd5e1" font-weight="500" text-anchor="middle">(image digest), owners,</text>
+<text x="110" y="501" font-size="10.5" fill="#cbd5e1" font-weight="500" text-anchor="middle">Ingress, Services,</text>
+<text x="110" y="516" font-size="10.5" fill="#cbd5e1" font-weight="500" text-anchor="middle">Traefik IngressRoutes</text>
+<rect x="24" y="554" width="172" height="96" rx="10" fill="url(#cardGrad)" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.45" filter="url(#cardShadow)"/>
+<rect x="24" y="562" width="3.5" height="80" rx="1.75" fill="#22d3ee"/>
+<circle cx="52" cy="584" r="16" fill="#22d3ee" fill-opacity="0.12" stroke="#22d3ee" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(52,584) scale(0.85)" fill="none" stroke="#22d3ee" stroke-width="1.88" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8.5 C4,-4.5 7,-1.5 7,2.5 C7,6.3 4,8.5 0,8.5 C-4,8.5 -7,6.3 -7,2.5 C-7,-0.5 -4.5,-2.5 -3,-5 C-2,-2.5 -1,-1.5 0.5,-1 C0.5,-3.5 0,-6 0,-8.5 Z M-2.5,8.3 C-3,5.5 -1,4 0,2.5 C1,4 3,5.5 2.5,8.3"/></g>
+<text x="76" y="581" font-size="14" fill="#f1f5f9" font-weight="700">Prometheus</text>
+<text x="76" y="598" font-size="12.5" fill="#cbd5e1" font-weight="600">compatible API</text>
+<text x="110" y="630" font-size="10.5" fill="#94a3b8" font-weight="500" text-anchor="middle">Prometheus · Thanos · Mimir</text>
+<rect x="402" y="192" width="588" height="132" rx="14" fill="url(#cardGradSub)" fill-opacity="0.55" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="4,3"/>
+<rect x="416" y="181" width="132.582" height="22" rx="6" fill="#0b1020" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.5"/>
+<text x="482.291" y="195.5" font-size="9" fill="#fbbf24" font-weight="700" text-anchor="middle" letter-spacing="1.3">EXTERNAL SOURCES</text>
+<rect x="420" y="210" width="172" height="94" rx="10" fill="url(#cardGrad)" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.4" filter="url(#cardShadow)"/>
+<rect x="434" y="210" width="144" height="2.5" rx="1.25" fill="#fbbf24"/>
+<circle cx="506" cy="236" r="15" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(506,236) scale(0.8)" fill="none" stroke="#fbbf24" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><rect x="-8" y="-5.5" width="16" height="11" rx="1.5"/><path d="M-4,-5.5 V5.5 M0,-5.5 V5.5 M4,-5.5 V5.5"/></g>
+<text x="506" y="269" font-size="13.5" fill="#f1f5f9" font-weight="700" text-anchor="middle">Container registries</text>
+<text x="506" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">with pull credentials</text>
+<text x="506" y="299" font-size="11" fill="#94a3b8" text-anchor="middle">public and private</text>
+<path d="M514,305 L514,386" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkAmber)" stroke-dasharray="6,4"/>
+<rect x="474.393" y="334" width="79.2145" height="18" rx="9" fill="#0b1020" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.6"/>
+<text x="514" y="346.78" font-size="10.5" fill="#fbbf24" font-weight="600" text-anchor="middle">pull by digest</text>
+<rect x="604" y="210" width="128" height="94" rx="10" fill="url(#cardGrad)" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.4" filter="url(#cardShadow)"/>
+<rect x="618" y="210" width="100" height="2.5" rx="1.25" fill="#fbbf24"/>
+<circle cx="668" cy="236" r="15" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(668,236) scale(0.8)" fill="none" stroke="#fbbf24" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="0" cy="-5" rx="7" ry="2.6"/><path d="M-7,-5 V5 C-7,8.4 7,8.4 7,5 V-5 M-7,0 C-7,3.4 7,3.4 7,0"/></g>
+<text x="668" y="269" font-size="13.5" fill="#f1f5f9" font-weight="700" text-anchor="middle">grype DB</text>
+<text x="668" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">vulnerability data</text>
+<text x="668" y="299" font-size="11" fill="#94a3b8" text-anchor="middle">(or a mirror)</text>
+<path d="M668,305 L668,386" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkAmber)" stroke-dasharray="6,4"/>
+<rect x="629.988" y="334" width="76.024" height="18" rx="9" fill="#0b1020" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.6"/>
+<text x="668" y="346.78" font-size="10.5" fill="#fbbf24" font-weight="600" text-anchor="middle">hourly check</text>
+<rect x="744" y="210" width="108" height="94" rx="10" fill="none" stroke="#f87171" stroke-width="1.5" stroke-opacity="0.55" filter="url(#redGlow)"/>
+<rect x="744" y="210" width="108" height="94" rx="10" fill="url(#cardGrad)" stroke="#f87171" stroke-width="1" stroke-opacity="0.4" filter="url(#cardShadow)"/>
+<rect x="758" y="210" width="80" height="2.5" rx="1.25" fill="#f87171"/>
+<circle cx="798" cy="236" r="15" fill="#f87171" fill-opacity="0.12" stroke="#f87171" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(798,236) scale(0.8)" fill="none" stroke="#f87171" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-7.5 L8,6.5 H-8 Z"/><path d="M0,-2 V2"/><circle cx="0" cy="4.3" r="0.5"/></g>
+<text x="798" y="269" font-size="13.5" fill="#f1f5f9" font-weight="700" text-anchor="middle">CISA KEV</text>
+<text x="798" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">known exploited</text>
+<text x="798" y="299" font-size="11" fill="#94a3b8" text-anchor="middle">vulnerabilities</text>
+<path d="M798,305 L798,386" fill="none" stroke="#f87171" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkRed)" stroke-dasharray="6,4"/>
+<rect x="761.015" y="334" width="73.9692" height="18" rx="9" fill="#0b1020" stroke="#f87171" stroke-width="1" stroke-opacity="0.6"/>
+<text x="798" y="346.78" font-size="10.5" fill="#f87171" font-weight="600" text-anchor="middle">KEV catalog</text>
+<rect x="862" y="210" width="108" height="94" rx="10" fill="url(#cardGrad)" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.4" filter="url(#cardShadow)"/>
+<rect x="876" y="210" width="80" height="2.5" rx="1.25" fill="#fbbf24"/>
+<circle cx="916" cy="236" r="15" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(916,236) scale(0.8)" fill="none" stroke="#fbbf24" stroke-width="2.00" stroke-linecap="round" stroke-linejoin="round"><path d="M-7.5,4 A7.5,7.5 0 1,1 7.5,4"/><path d="M0,3 L4,-3"/><circle cx="0" cy="3" r="1"/></g>
+<text x="916" y="269" font-size="13.5" fill="#f1f5f9" font-weight="700" text-anchor="middle">FIRST EPSS</text>
+<text x="916" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">exploit</text>
+<text x="916" y="299" font-size="11" fill="#94a3b8" text-anchor="middle">probability</text>
+<path d="M916,305 L916,386" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkAmber)" stroke-dasharray="6,4"/>
+<rect x="876.961" y="334" width="78.0789" height="18" rx="9" fill="#0b1020" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.6"/>
+<text x="916" y="346.78" font-size="10.5" fill="#fbbf24" font-weight="600" text-anchor="middle">EPSS scores</text>
+<rect x="252" y="362" width="704" height="310" rx="18" fill="none" stroke="#a78bfa" stroke-width="2" stroke-opacity="0.5" filter="url(#purpleGlow)"/>
+<rect x="252" y="362" width="704" height="310" rx="18" fill="url(#coreGrad)" stroke="url(#coreStroke)" stroke-width="1.4" filter="url(#cardShadow)"/>
+<line x1="282" y1="362.7" x2="926" y2="362.7" stroke="url(#coreTopLine)" stroke-width="1.4"/>
+<rect x="270" y="390" width="34" height="34" rx="9" fill="url(#purpleNodeGrad)" fill-opacity="0.22" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.7"/>
+<g transform="translate(287,407) scale(0.95)" fill="none" stroke="#ddd6fe" stroke-width="1.58" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8 L7,-5 V0 C7,4.5 4,7 0,8.5 C-4,7 -7,4.5 -7,0 V-5 Z"/><path d="M-5,0.5 H-2.5 L-1,-3 L1,4 L2.5,0.5 H5"/></g>
+<text x="312" y="413" font-size="16.5" fill="url(#titleGrad2)" font-weight="800">paindash</text>
+<text x="270" y="444" font-size="11.5" fill="#e2e8f0" font-weight="600">single Go binary</text>
+<text x="270" y="460" font-size="11" fill="#94a3b8">embedded React UI</text>
+<text x="270" y="476" font-size="11" fill="#94a3b8">one pod</text>
+<rect x="270" y="554" width="124" height="96" rx="10" fill="#0d1326" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="270" y="554" width="124" height="96" rx="10" fill="url(#cyanNodeGrad)" fill-opacity="0.09"/>
+<rect x="270" y="564" width="3.5" height="76" rx="1.75" fill="#22d3ee"/>
+<text x="285" y="576" font-size="9.5" fill="#22d3ee" font-weight="700" letter-spacing="1.4">STEP 1</text>
+<g transform="translate(375,573) scale(0.75)" fill="none" stroke="#22d3ee" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5,-2.5 A7,7 0 0,0 -6,-3.5 M-6.5,2.5 A7,7 0 0,0 6,3.5"/><path d="M6.8,-7 V-2.5 H2.3 M-6.8,7 V2.5 H-2.3"/></g>
+<text x="285" y="599" font-size="13.5" fill="#f1f5f9" font-weight="700">Inventory sync</text>
+<text x="285" y="619" font-size="11" fill="#94a3b8">every 30 s</text>
+<text x="285" y="635" font-size="11" fill="#94a3b8">digests per env</text>
+<rect x="452" y="554" width="124" height="96" rx="10" fill="#0d1326" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="452" y="554" width="124" height="96" rx="10" fill="url(#purpleNodeGrad)" fill-opacity="0.09"/>
+<rect x="452" y="564" width="3.5" height="76" rx="1.75" fill="#a78bfa"/>
+<text x="467" y="576" font-size="9.5" fill="#a78bfa" font-weight="700" letter-spacing="1.4">STEP 2</text>
+<g transform="translate(557,573) scale(0.75)" fill="none" stroke="#a78bfa" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><rect x="-7.5" y="-7" width="15" height="4" rx="1.5"/><rect x="-7.5" y="-2" width="15" height="4" rx="1.5"/><rect x="-7.5" y="3" width="15" height="4" rx="1.5"/></g>
+<text x="467" y="599" font-size="13.5" fill="#f1f5f9" font-weight="700">Scan queue</text>
+<text x="467" y="619" font-size="11" fill="#94a3b8">new digests only</text>
+<text x="467" y="635" font-size="11" fill="#94a3b8">prod first</text>
+<rect x="452" y="388" width="124" height="96" rx="10" fill="#0d1326" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="452" y="388" width="124" height="96" rx="10" fill="url(#purpleNodeGrad)" fill-opacity="0.09"/>
+<rect x="452" y="398" width="3.5" height="76" rx="1.75" fill="#a78bfa"/>
+<text x="467" y="410" font-size="9.5" fill="#a78bfa" font-weight="700" letter-spacing="1.4">STEP 3</text>
+<g transform="translate(557,407) scale(0.75)" fill="none" stroke="#a78bfa" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><circle cx="-1.5" cy="-1.5" r="5.5"/><path d="M2.6,2.6 L7.5,7.5"/></g>
+<text x="467" y="433" font-size="13.5" fill="#f1f5f9" font-weight="700">syft: SBOM</text>
+<text x="467" y="453" font-size="11" fill="#94a3b8">pull by digest</text>
+<text x="467" y="469" font-size="11" fill="#94a3b8">SBOM stored once</text>
+<rect x="622" y="388" width="124" height="96" rx="10" fill="#0d1326" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="622" y="388" width="124" height="96" rx="10" fill="url(#purpleNodeGrad)" fill-opacity="0.09"/>
+<rect x="622" y="398" width="3.5" height="76" rx="1.75" fill="#a78bfa"/>
+<text x="637" y="410" font-size="9.5" fill="#a78bfa" font-weight="700" letter-spacing="1.4">STEP 4</text>
+<g transform="translate(727,407) scale(0.75)" fill="none" stroke="#a78bfa" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><circle cx="0" cy="0" r="7"/><circle cx="0" cy="0" r="3"/><path d="M0,-9.5 V-5 M0,5 V9.5 M-9.5,0 H-5 M5,0 H9.5"/></g>
+<text x="637" y="433" font-size="13.5" fill="#f1f5f9" font-weight="700">grype: match</text>
+<text x="637" y="453" font-size="11" fill="#94a3b8">SBOM → findings</text>
+<text x="637" y="469" font-size="11" fill="#94a3b8">+ fixed version</text>
+<rect x="792" y="388" width="146" height="96" rx="10" fill="#0d1326" stroke="#f87171" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="792" y="388" width="146" height="96" rx="10" fill="url(#redNodeGrad)" fill-opacity="0.09"/>
+<rect x="792" y="398" width="3.5" height="76" rx="1.75" fill="#f87171"/>
+<text x="807" y="410" font-size="9.5" fill="#f87171" font-weight="700" letter-spacing="1.4">STEP 5</text>
+<g transform="translate(919,407) scale(0.75)" fill="none" stroke="#f87171" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-8 L7,-5 V0 C7,4.5 4,7 0,8.5 C-4,7 -7,4.5 -7,0 V-5 Z"/><path d="M0,-3.5 V1.5"/><circle cx="0" cy="4.2" r="0.5"/></g>
+<text x="807" y="433" font-size="13.5" fill="#f1f5f9" font-weight="700">KEV + EPSS</text>
+<text x="807" y="450" font-size="13.5" fill="#f1f5f9" font-weight="700">enrichment</text>
+<text x="807" y="470" font-size="11" fill="#94a3b8">exploited first</text>
+<rect x="792" y="554" width="146" height="96" rx="10" fill="#0d1326" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)"/>
+<rect x="792" y="554" width="146" height="96" rx="10" fill="url(#purpleNodeGrad)" fill-opacity="0.09"/>
+<rect x="792" y="564" width="3.5" height="76" rx="1.75" fill="#a78bfa"/>
+<text x="807" y="576" font-size="9.5" fill="#a78bfa" font-weight="700" letter-spacing="1.4">STEP 6</text>
+<g transform="translate(919,573) scale(0.75)" fill="none" stroke="#a78bfa" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><path d="M0,-7 L8,-3 L0,1 L-8,-3 Z M-8,1 L0,5 L8,1 M-8,5 L0,9 L8,5"/></g>
+<text x="807" y="599" font-size="13.5" fill="#f1f5f9" font-weight="700">Read model</text>
+<text x="807" y="619" font-size="11" fill="#94a3b8">per environment</text>
+<text x="807" y="635" font-size="11" fill="#94a3b8">exposure, promotion</text>
+<rect x="622" y="554" width="124" height="96" rx="10" fill="#0d1326" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.5" filter="url(#nodeShadow)" stroke-dasharray="4,3"/>
+<rect x="622" y="554" width="124" height="96" rx="10" fill="url(#orangeNodeGrad)" fill-opacity="0.09"/>
+<rect x="622" y="564" width="3.5" height="76" rx="1.75" fill="#fbbf24"/>
+<text x="637" y="576" font-size="9.5" fill="#fbbf24" font-weight="700" letter-spacing="1.4">SIDE LOOP</text>
+<g transform="translate(727,573) scale(0.75)" fill="none" stroke="#fbbf24" stroke-width="2.13" stroke-linecap="round" stroke-linejoin="round"><circle cx="0" cy="0" r="7.5"/><path d="M0,-4 V0 L3,2"/></g>
+<text x="637" y="599" font-size="13.5" fill="#f1f5f9" font-weight="700">Rematch loop</text>
+<text x="637" y="619" font-size="11" fill="#94a3b8">DB checked hourly</text>
+<text x="637" y="635" font-size="11" fill="#94a3b8">→ all stored SBOMs</text>
+<path d="M395,602 L450,602" fill="none" stroke="url(#fl2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<rect x="398.979" y="576" width="48.0415" height="18" rx="9" fill="#0b1020" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.6"/>
+<text x="423" y="588.6" font-size="10" fill="#a78bfa" font-weight="600" text-anchor="middle">digests</text>
+<path d="M577,436 L620,436" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<rect x="577.631" y="410" width="42.737" height="18" rx="9" fill="#0b1020" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.6"/>
+<text x="599" y="422.6" font-size="10" fill="#a78bfa" font-weight="600" text-anchor="middle">SBOM</text>
+<path d="M747,436 L790,436" fill="none" stroke="url(#fl3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkRed)"/>
+<rect x="749.202" y="410" width="39.5955" height="18" rx="9" fill="#0b1020" stroke="#f87171" stroke-width="1" stroke-opacity="0.6"/>
+<text x="769" y="422.6" font-size="10" fill="#f87171" font-weight="600" text-anchor="middle">CVEs</text>
+<path d="M514,553 L514,486" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<rect x="480.125" y="510" width="67.7506" height="18" rx="9" fill="#0b1020" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.6"/>
+<text x="514" y="522.78" font-size="10.5" fill="#a78bfa" font-weight="600" text-anchor="middle">next image</text>
+<path d="M668,553 L668,486" fill="none" stroke="url(#fl4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<rect x="592.217" y="510" width="151.567" height="18" rx="9" fill="#0b1020" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.6"/>
+<text x="668" y="522.78" font-size="10.5" fill="#fbbf24" font-weight="600" text-anchor="middle">rematch every stored SBOM</text>
+<path d="M865,485 L865,552" fill="none" stroke="url(#fl5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<rect x="820.688" y="510" width="88.6235" height="18" rx="9" fill="#0b1020" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.6"/>
+<text x="865" y="522.78" font-size="10.5" fill="#a78bfa" font-weight="600" text-anchor="middle">scored findings</text>
+<path d="M197,602 L268,602" fill="none" stroke="url(#fl6)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkCyan)"/>
+<rect x="198.022" y="593" width="51.9555" height="18" rx="9" fill="#0b1020" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.6"/>
+<text x="224" y="605.6" font-size="10" fill="#22d3ee" font-weight="600" text-anchor="middle">PromQL</text>
+<path d="M606,674 L606,714" fill="none" stroke="url(#fl7)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)" marker-start="url(#mkBlue)"/>
+<rect x="588.957" y="685" width="34.085" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
+<text x="606" y="697.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">SQL</text>
+<rect x="386" y="716" width="440" height="100" rx="12" fill="none" stroke="#4facfe" stroke-width="1.5" stroke-opacity="0.55" filter="url(#blueGlow)"/>
+<rect x="386" y="716" width="440" height="100" rx="12" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.45" filter="url(#cardShadow)"/>
+<rect x="386" y="724" width="3.5" height="84" rx="1.75" fill="#4facfe"/>
+<circle cx="418" cy="748" r="17" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(418,748) scale(0.9)" fill="none" stroke="#4facfe" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="0" cy="-5" rx="7" ry="2.6"/><path d="M-7,-5 V5 C-7,8.4 7,8.4 7,5 V-5 M-7,0 C-7,3.4 7,3.4 7,0"/></g>
+<text x="444" y="746" font-size="15" fill="#f1f5f9" font-weight="700">PostgreSQL</text>
+<text x="538.814" y="746" font-size="11" fill="#64748b" font-weight="600" class="mono">14+</text>
+<text x="444" y="763" font-size="11" fill="#94a3b8">the only state paindash keeps</text>
+<rect x="404" y="780" width="55.6723" height="22" rx="6" fill="#4facfe" fill-opacity="0.1" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35"/>
+<text x="431.836" y="795" font-size="11" fill="#bfdbfe" font-weight="600" text-anchor="middle">SBOMs</text>
+<rect x="467.672" y="780" width="58.5048" height="22" rx="6" fill="#4facfe" fill-opacity="0.1" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35"/>
+<text x="496.925" y="795" font-size="11" fill="#bfdbfe" font-weight="600" text-anchor="middle">findings</text>
+<rect x="534.177" y="780" width="132.716" height="22" rx="6" fill="#4facfe" fill-opacity="0.1" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35"/>
+<text x="600.535" y="795" font-size="11" fill="#bfdbfe" font-weight="600" text-anchor="middle">exceptions (OpenVEX)</text>
+<rect x="674.893" y="780" width="52.3866" height="22" rx="6" fill="#4facfe" fill-opacity="0.1" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35"/>
+<text x="701.087" y="795" font-size="11" fill="#bfdbfe" font-weight="600" text-anchor="middle">events</text>
+<rect x="735.28" y="780" width="53.4629" height="22" rx="6" fill="#4facfe" fill-opacity="0.1" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35"/>
+<text x="762.011" y="795" font-size="11" fill="#bfdbfe" font-weight="600" text-anchor="middle">history</text>
+<text x="1032" y="476" font-size="9" fill="#34d399" font-weight="700" letter-spacing="1.6">OUTPUTS</text>
+<path d="M939,602 L1030,602" fill="none" stroke="url(#fl8)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkGreen)"/>
+<path d="M1014,602.0 L1014,525 Q1014,518 1021,518 L1030,518" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkGreen)"/>
+<path d="M1014,602.0 L1014,679 Q1014,686 1021,686 L1030,686" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkGreen)"/>
+<circle cx="1014" cy="602.0" r="3" fill="#34d399"/>
+<rect x="962.37" y="593" width="45.2605" height="18" rx="9" fill="#0b1020" stroke="#34d399" stroke-width="1" stroke-opacity="0.6"/>
+<text x="985" y="605.6" font-size="10" fill="#34d399" font-weight="600" text-anchor="middle">serves</text>
+<rect x="1032" y="486" width="152" height="64" rx="10" fill="none" stroke="#34d399" stroke-width="1.5" stroke-opacity="0.55" filter="url(#greenGlow)"/>
+<rect x="1032" y="486" width="152" height="64" rx="10" fill="url(#cardGrad)" stroke="#34d399" stroke-width="1" stroke-opacity="0.5" filter="url(#cardShadow)"/>
+<rect x="1032" y="494" width="3.5" height="48" rx="1.75" fill="#34d399"/>
+<circle cx="1056" cy="518" r="15" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1056,518) scale(0.78)" fill="none" stroke="#34d399" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><rect x="-8.5" y="-6.5" width="17" height="13" rx="2"/><path d="M-8.5,-2.5 H8.5"/><circle cx="-6" cy="-4.5" r="0.4"/><circle cx="-4" cy="-4.5" r="0.4"/></g>
+<text x="1078" y="514" font-size="13.5" fill="#f1f5f9" font-weight="700">Web UI</text>
+<text x="1129.94" y="514" font-size="10.5" fill="#64748b" font-weight="600" class="mono">:8080</text>
+<text x="1078" y="532" font-size="11" fill="#94a3b8">+ live feed (SSE)</text>
+<rect x="1032" y="570" width="152" height="64" rx="10" fill="none" stroke="#34d399" stroke-width="1.5" stroke-opacity="0.55" filter="url(#greenGlow)"/>
+<rect x="1032" y="570" width="152" height="64" rx="10" fill="url(#cardGrad)" stroke="#34d399" stroke-width="1" stroke-opacity="0.5" filter="url(#cardShadow)"/>
+<rect x="1032" y="578" width="3.5" height="48" rx="1.75" fill="#34d399"/>
+<circle cx="1056" cy="602" r="15" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1056,602) scale(0.78)" fill="none" stroke="#34d399" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M-7,7 H7 M-5,7 V1 M-1.5,7 V-3 M2,7 V-0.5 M5.5,7 V-6"/></g>
+<text x="1078" y="598" font-size="13" fill="#f1f5f9" font-weight="700" class="mono">/metrics</text>
+<text x="1143.44" y="598" font-size="10.5" fill="#64748b" font-weight="600" class="mono">:9090</text>
+<text x="1078" y="616" font-size="11" fill="#94a3b8">per env + workload</text>
+<rect x="1032" y="654" width="152" height="64" rx="10" fill="none" stroke="#34d399" stroke-width="1.5" stroke-opacity="0.55" filter="url(#greenGlow)"/>
+<rect x="1032" y="654" width="152" height="64" rx="10" fill="url(#cardGrad)" stroke="#34d399" stroke-width="1" stroke-opacity="0.5" filter="url(#cardShadow)"/>
+<rect x="1032" y="662" width="3.5" height="48" rx="1.75" fill="#34d399"/>
+<circle cx="1056" cy="686" r="15" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1056,686) scale(0.78)" fill="none" stroke="#34d399" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><rect x="-8.5" y="-6.5" width="17" height="13" rx="2"/><path d="M-5,-2 L-2,0.5 L-5,3 M0.5,3 H5"/></g>
+<text x="1078" y="682" font-size="13.5" fill="#f1f5f9" font-weight="700">Fix prompts</text>
+<rect x="1078" y="690" width="96.577" height="17" rx="5" fill="#fb7185" fill-opacity="0.12" stroke="#fb7185" stroke-width="1" stroke-opacity="0.45"/>
+<text x="1126.29" y="701.8" font-size="8.5" fill="#fb7185" font-weight="700" text-anchor="middle" letter-spacing="1.1">EXPERIMENTAL</text>
+<rect x="1240" y="486" width="136" height="64" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
+<circle cx="1262" cy="518" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1262,518) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><rect x="-6.5" y="-1.5" width="13" height="9.5" rx="2"/><path d="M-4,-1.5 V-4 A4,4 0 0,1 4,-4 V-1.5 M0,2.2 V4.5"/></g>
+<text x="1282" y="516" font-size="13" fill="#f1f5f9" font-weight="700">Pomerium</text>
+<text x="1282" y="532" font-size="10.5" fill="#94a3b8">auth (SSO)</text>
+<rect x="1240" y="388" width="136" height="52" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
+<circle cx="1262" cy="414" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1262,414) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><circle cx="-2.5" cy="-3.5" r="3"/><path d="M-8,7 C-8,2.5 -5.5,0.5 -2.5,0.5 C0.5,0.5 3,2.5 3,7"/><circle cx="4.5" cy="-4" r="2.4"/><path d="M5,0.3 C7.5,0.6 9,2.8 9,6"/></g>
+<text x="1282" y="412" font-size="13" fill="#f1f5f9" font-weight="700">Users</text>
+<text x="1282" y="428" font-size="10.5" fill="#94a3b8">your teams</text>
+<rect x="1240" y="570" width="136" height="64" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
+<circle cx="1262" cy="602" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1262,602) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><path d="M-6,4 C-5,2.5 -5,1 -5,-1.5 C-5,-5 -2.5,-7 0,-7 C2.5,-7 5,-5 5,-1.5 C5,1 5,2.5 6,4 Z M-1.8,6.5 C-1,8 1,8 1.8,6.5"/></g>
+<text x="1282" y="600" font-size="13" fill="#f1f5f9" font-weight="700">Prometheus</text>
+<text x="1282" y="616" font-size="10.5" fill="#94a3b8">alerts</text>
+<rect x="1240" y="654" width="136" height="64" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
+<circle cx="1262" cy="686" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1262,686) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><rect x="-7.5" y="-4.5" width="15" height="11" rx="3"/><path d="M0,-4.5 V-7.5"/><circle cx="0" cy="-8" r="0.8"/><circle cx="-3" cy="0.5" r="1"/><circle cx="3" cy="0.5" r="1"/><path d="M-9.5,0 V2.5 M9.5,0 V2.5"/></g>
+<text x="1282" y="684" font-size="13" fill="#f1f5f9" font-weight="700">Coding agent</text>
+<text x="1282" y="700" font-size="10.5" fill="#94a3b8">Claude Code, …</text>
+<rect x="1240" y="764" width="136" height="52" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
+<circle cx="1262" cy="790" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
+<g transform="translate(1262,790) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><circle cx="-4" cy="-6" r="2"/><circle cx="-4" cy="6" r="2"/><circle cx="5" cy="1" r="2"/><path d="M-4,-4 V4 M-4,-3 C-4,1 3,-2 4.2,-0.6"/></g>
+<text x="1282" y="788" font-size="13" fill="#f1f5f9" font-weight="700">Pull requests</text>
+<text x="1282" y="804" font-size="10.5" fill="#94a3b8">one per repo</text>
+<path d="M1185,518 L1238,518" fill="none" stroke="url(#fl9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
+<rect x="1191.61" y="509" width="40.78" height="18" rx="9" fill="#0b1020" stroke="#34d399" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1212" y="521.6" font-size="10" fill="#34d399" font-weight="600" text-anchor="middle">HTTP</text>
+<path d="M1185,602 L1238,602" fill="none" stroke="url(#fl10)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
+<rect x="1189.37" y="593" width="45.2605" height="18" rx="9" fill="#0b1020" stroke="#34d399" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1212" y="605.6" font-size="10" fill="#34d399" font-weight="600" text-anchor="middle">scrape</text>
+<path d="M1185,686 L1238,686" fill="none" stroke="url(#fl11)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
+<rect x="1188.7" y="677" width="46.5995" height="18" rx="9" fill="#0b1020" stroke="#34d399" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1212" y="689.6" font-size="10" fill="#34d399" font-weight="600" text-anchor="middle">prompt</text>
+<path d="M1308,485 L1308,442" fill="none" stroke="#4facfe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
+<rect x="1268.25" y="456" width="79.508" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1308" y="468.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">HTTPS + SSO</text>
+<path d="M1308,719 L1308,762" fill="none" stroke="#4facfe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
+<rect x="1287.22" y="730" width="41.5525" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1308" y="742.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">opens</text>
+<rect x="1032" y="192" width="344" height="132" rx="14" fill="url(#cardGradSub)" fill-opacity="0.75" stroke="#1e3a5f" stroke-width="1" filter="url(#cardShadow)"/>
+<text x="1050" y="216" font-size="9" fill="#64748b" font-weight="700" letter-spacing="1.6">LEGEND</text>
+<path d="M1050,236 L1094,236" fill="none" stroke="url(#fl12)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkViolet)"/>
+<text x="1104" y="240" font-size="11.5" fill="#cbd5e1" font-weight="500">Data flow</text>
+<path d="M1214,236 L1258,236" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkAmber)" stroke-dasharray="6,4"/>
+<text x="1268" y="240" font-size="11.5" fill="#cbd5e1" font-weight="500">External fetch</text>
+<rect x="1048" y="256" width="16" height="16" rx="5" fill="#22d3ee" fill-opacity="0.15"/>
+<rect x="1050" y="258" width="12" height="12" rx="3.5" fill="#22d3ee" fill-opacity="0.9"/>
+<text x="1069" y="268" font-size="11" fill="#94a3b8" font-weight="500">Inventory</text>
+<rect x="1212" y="256" width="16" height="16" rx="5" fill="#fbbf24" fill-opacity="0.15"/>
+<rect x="1214" y="258" width="12" height="12" rx="3.5" fill="#fbbf24" fill-opacity="0.9"/>
+<text x="1233" y="268" font-size="11" fill="#94a3b8" font-weight="500">External source</text>
+<rect x="1048" y="277" width="16" height="16" rx="5" fill="#a78bfa" fill-opacity="0.15"/>
+<rect x="1050" y="279" width="12" height="12" rx="3.5" fill="#a78bfa" fill-opacity="0.9"/>
+<text x="1069" y="289" font-size="11" fill="#94a3b8" font-weight="500">paindash core</text>
+<rect x="1212" y="277" width="16" height="16" rx="5" fill="#f87171" fill-opacity="0.15"/>
+<rect x="1214" y="279" width="12" height="12" rx="3.5" fill="#f87171" fill-opacity="0.9"/>
+<text x="1233" y="289" font-size="11" fill="#94a3b8" font-weight="500">Exploited (KEV)</text>
+<rect x="1048" y="298" width="16" height="16" rx="5" fill="#34d399" fill-opacity="0.15"/>
+<rect x="1050" y="300" width="12" height="12" rx="3.5" fill="#34d399" fill-opacity="0.9"/>
+<text x="1069" y="310" font-size="11" fill="#94a3b8" font-weight="500">Outputs</text>
+<rect x="1212" y="298" width="16" height="16" rx="5" fill="#4facfe" fill-opacity="0.15"/>
+<rect x="1214" y="300" width="12" height="12" rx="3.5" fill="#4facfe" fill-opacity="0.9"/>
+<text x="1233" y="310" font-size="11" fill="#94a3b8" font-weight="500">Storage, consumers</text>
+<rect x="24" y="692" width="344" height="124" rx="12" fill="url(#cardGradSub)" fill-opacity="0.75" stroke="#1e3a5f" stroke-width="1" filter="url(#cardShadow)"/>
+<text x="40" y="714" font-size="9" fill="#64748b" font-weight="700" letter-spacing="1.6">AT A GLANCE</text>
+<rect x="40" y="726" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="50" y="741" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">INVENTORY</text>
+<text x="50" y="758" font-size="12.5" fill="#22d3ee" font-weight="700">every 30 s</text>
+<rect x="146.667" y="726" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="156.667" y="741" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">DB CHECK</text>
+<text x="156.667" y="758" font-size="12.5" fill="#fbbf24" font-weight="700">hourly</text>
+<rect x="253.333" y="726" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="263.333" y="741" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">SCANS</text>
+<text x="263.333" y="758" font-size="12.5" fill="#a78bfa" font-weight="700">1 per digest</text>
+<rect x="40" y="768" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="50" y="783" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">UI + API</text>
+<text x="50" y="800" font-size="12.5" fill="#34d399" font-weight="700" class="mono">:8080</text>
+<rect x="146.667" y="768" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="156.667" y="783" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">METRICS</text>
+<text x="156.667" y="800" font-size="12.5" fill="#34d399" font-weight="700" class="mono">:9090</text>
+<rect x="253.333" y="768" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
+<text x="263.333" y="783" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">AUTH</text>
+<text x="263.333" y="800" font-size="12.5" fill="#4facfe" font-weight="700">Pomerium</text>
+<line x1="24" y1="848" x2="1376" y2="848" stroke="url(#fadeH)" stroke-width="1"/>
+<rect x="294.239" y="866" width="35.4261" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="311.952" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Go</text>
+<rect x="339.665" y="866" width="121.024" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="400.177" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">React + TypeScript</text>
+<rect x="470.689" y="866" width="42.2807" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
+<text x="491.829" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">syft</text>
+<rect x="522.97" y="866" width="50.325" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
+<text x="548.132" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">grype</text>
+<rect x="583.295" y="866" width="83.8618" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
+<text x="625.226" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">PostgreSQL</text>
+<rect x="677.157" y="866" width="83.4086" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="718.861" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Prometheus</text>
+<rect x="770.565" y="866" width="73.7215" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
+<text x="807.426" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">Pomerium</text>
+<rect x="854.287" y="866" width="69.6427" height="24" rx="7" fill="#34d399" fill-opacity="0.08" stroke="#34d399" stroke-width="1" stroke-opacity="0.3"/>
+<text x="889.108" y="882" font-size="11" fill="#34d399" font-weight="600" text-anchor="middle">OpenVEX</text>
+<rect x="933.929" y="866" width="73.5515" height="24" rx="7" fill="#f87171" fill-opacity="0.08" stroke="#f87171" stroke-width="1" stroke-opacity="0.3"/>
+<text x="970.705" y="882" font-size="11" fill="#f87171" font-weight="600" text-anchor="middle">CISA KEV</text>
+<rect x="1017.48" y="866" width="88.2805" height="24" rx="7" fill="#fbbf24" fill-opacity="0.08" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.3"/>
+<text x="1061.62" y="882" font-size="11" fill="#fbbf24" font-weight="600" text-anchor="middle">FIRST EPSS</text>
+<text x="700" y="918" font-size="11.5" fill="#475569" text-anchor="middle"><tspan fill="#a78bfa" font-weight="700">paindash</tspan> reads what runs, scans each image once, and rematches every stored SBOM whenever the vulnerability database changes</text>
+<text x="700" y="936" font-size="10.5" fill="#334155" text-anchor="middle">No agent in the clusters · never writes to a cluster or a registry · UI behind Pomerium</text>
+<path d="M14,36 L14,14 L36,14" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M1386,36 L1386,14 L1364,14" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M14,928 L14,950 L36,950" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M1386,928 L1386,950 L1364,950" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+</svg>

@@ -1,0 +1,18 @@
+---
+name: Pull Request Verify
+# PR gate: the full validation suite of verify.yml. No path filter on purpose,
+# so every check reports on every PR and can be a required status check.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml

@@ -1,0 +1,35 @@
+---
+name: Audit Docker Digests
+# Dependabot only tracks `:tag` changes, never `@sha256:` digest pins. This
+# monthly job fails when a base image pinned in the Dockerfile has been
+# republished (security fixes) under the same tag.
+#
+# Fix: contribs/audit-docker-digests --fix, review the diff, open a PR.
+on:
+  schedule:
+  - cron: '0 5 1 * *' # monthly, 1st at 05:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit base image digests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+      timeout-minutes: 2
+
+    # jq and docker buildx are preinstalled on ubuntu-24.04 runners.
+    - name: Run digest audit
+      run: contribs/audit-docker-digests --check --platform=linux/amd64
+      timeout-minutes: 5

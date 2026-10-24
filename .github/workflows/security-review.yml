@@ -1,0 +1,54 @@
+---
+name: AI Security Review
+# Advisory layer on top of the deterministic gates of verify.yml: findings are
+# posted as inline PR comments, the job never blocks merge.
+#
+# Repo secret: CLAUDE_API_KEY (Anthropic API key). Until it exists the review
+# step is skipped and the job passes: adding the secret is enough to enable it.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+    - 'cmd/**'
+    - 'internal/**'
+    - 'web/src/**'
+    - 'web/package.json'
+    - 'Dockerfile'
+    - 'contribs/**'
+    - '.github/**'
+
+permissions:
+  contents: read
+  pull-requests: write # inline review comments
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ai-security-review:
+    name: AI security review (advisory)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      HAS_KEY: ${{ secrets.CLAUDE_API_KEY != '' }}
+    steps:
+    - name: Check out PR head
+      if: env.HAS_KEY == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 2
+        persist-credentials: false
+      timeout-minutes: 2
+
+    - name: Claude Code security review (advisory, never blocks)
+      if: env.HAS_KEY == 'true'
+      uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # main @ 2026-02-11, no tagged release; pinned to a reviewed commit
+      with:
+        claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+        comment-pr: true
+        # No results artifact: a verbose SDK error log could surface the key.
+        upload-results: false
+        exclude-directories: web/node_modules,web/dist
+        claudecode-timeout: '20'

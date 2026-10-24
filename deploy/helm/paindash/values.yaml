@@ -1,0 +1,189 @@
+# Empty values are not passed to the pod: the binary's defaults apply.
+
+image:
+  # Image repository.
+  repository: ghcr.io/n0cl0ud/paindash
+  # Image tag; defaults to the chart appVersion.
+  tag: ""
+  # Image digest (sha256:...); when set, the image is pulled by digest.
+  digest: ""
+  # Image pull policy.
+  pullPolicy: IfNotPresent
+
+# Secrets to pull the paindash image itself (scanned images use registry.pullSecret).
+imagePullSecrets: []
+# Overrides the chart name in resource names.
+nameOverride: ""
+# Overrides the full resource name.
+fullnameOverride: ""
+
+serviceAccount:
+  # Creates the ServiceAccount; its token is never mounted (paindash does not call the Kubernetes API).
+  create: true
+  # ServiceAccount name; defaults to the full name.
+  name: ""
+  # Annotations, e.g. eks.amazonaws.com/role-arn for ECR pulls through IRSA.
+  annotations: {}
+
+database:
+  # PostgreSQL 14+ URL (postgres://user:password@host:5432/paindash?sslmode=require), stored in a Secret.
+  url: ""
+  # Existing Secret holding the URL; takes precedence over url.
+  existingSecret: ""
+  # Key of the URL in existingSecret.
+  existingSecretKey: url
+  # Connection pool size (binary default 4).
+  maxConns: ""
+
+prometheus:
+  # Prometheus-compatible query API with the kube-state-metrics series; required unless demo.enabled.
+  url: ""
+  # Series label holding the env (binary default "env").
+  envLabel: ""
+  # Series label holding the cluster (binary default "cluster").
+  clusterLabel: ""
+  # Env of series without the env label (single Prometheus); disables the env filter.
+  defaultEnv: ""
+  # Cluster of series without the cluster label (binary default "default").
+  defaultCluster: ""
+
+# Envs to show, in switch order; the first is scanned first (binary default prod,test,dev).
+envs: []
+# Order fixes are promoted through the envs (binary default dev,test,prod).
+promotion: []
+
+exposure:
+  # Traefik entrypoints reachable from the internet (binary default web,websecure).
+  publicEntrypoints: []
+  # Ingress class -> "internet" or "internal"; unlisted classes are guessed from their name.
+  ingressClasses: {}
+
+auth:
+  # "pomerium" (verify the Pomerium JWT) or "disabled" (only behind an authenticating proxy).
+  mode: pomerium
+  pomerium:
+    # Pomerium JWKS, e.g. https://authenticate.example.com/.well-known/pomerium/jwks.json; required in pomerium mode.
+    jwksUrl: ""
+    # Expected JWT audience: the route host, e.g. paindash.example.com; required in pomerium mode.
+    audience: ""
+    # Expected JWT issuer; empty skips the issuer check.
+    issuer: ""
+  # Groups allowed in ("groups" claim), on top of the Pomerium policy; empty allows any authenticated user.
+  allowedGroups: []
+
+registry:
+  # Existing kubernetes.io/dockerconfigjson Secret used to pull the scanned images.
+  pullSecret: ""
+  # ECR registries pulled with the pod's IAM role (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com).
+  ecrRegistries: []
+
+scanner:
+  # Images scanned in parallel (binary default 2).
+  concurrency: ""
+  # Grype DB mirror (grype db.update-url), for air-gapped clusters.
+  grypeDbUrl: ""
+
+enrichment:
+  # CISA KEV and FIRST EPSS enrichment; false removes that egress.
+  enabled: true
+
+fixPrompt:
+  # GitHub owners whose images are built in-house: the fix prompt fixes them in their source repo.
+  githubOwners: []
+  # GitOps repository ("owner/name") where the fix prompt bumps third-party images.
+  gitopsRepo: ""
+
+# Pruning delay of images no longer running and of old events (binary default 720h).
+retention: ""
+
+demo:
+  # Simulated clusters and scanner with fake CVEs; still needs PostgreSQL, and does not disable auth.
+  enabled: false
+
+# Extra environment variables (EnvVar list), e.g. PGHOST/PGUSER/PGPASSWORD instead of database.url.
+extraEnv: []
+# Extra environment sources (EnvFromSource list), e.g. a Secret of PG* variables.
+envFrom: []
+
+persistence:
+  # Keeps the grype DB (~3 GB) on a PersistentVolumeClaim; disabled, an emptyDir downloaded again on every restart.
+  enabled: true
+  # Existing claim to use instead of creating one.
+  existingClaim: ""
+  # StorageClass of the claim; empty uses the cluster default, "-" sets no class.
+  storageClass: ""
+  # Size of the claim.
+  size: 10Gi
+
+scratch:
+  # Size limit of the emptyDir where syft unpacks image layers.
+  sizeLimit: 10Gi
+
+service:
+  # Service type; the metrics port is on the same Service, keep it internal.
+  type: ClusterIP
+  # Service annotations.
+  annotations: {}
+
+ingress:
+  # Creates an Ingress to the http port; put authentication in front of it (see auth).
+  enabled: false
+  # Ingress class name.
+  className: ""
+  # Ingress annotations; /api/stream is a long-lived SSE stream, raise proxy read timeouts.
+  annotations: {}
+  # Hosts and paths.
+  hosts:
+  - host: paindash.example.com
+    paths:
+    - path: /
+      pathType: Prefix
+  # TLS entries (secretName, hosts).
+  tls: []
+
+serviceMonitor:
+  # Creates a Prometheus Operator ServiceMonitor for the metrics port.
+  enabled: false
+  # Extra labels, e.g. to match the Prometheus serviceMonitorSelector.
+  labels: {}
+  # Scrape interval; empty uses the Prometheus default.
+  interval: ""
+  # Scrape timeout; empty uses the Prometheus default.
+  scrapeTimeout: ""
+
+# Pod security context.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# Container resources; ephemeral storage covers the scratch volume (and the cache when persistence is disabled).
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+    ephemeral-storage: 2Gi
+  limits:
+    memory: 4Gi
+    ephemeral-storage: 12Gi
+
+# Pod annotations.
+podAnnotations: {}
+# Pod labels.
+podLabels: {}
+# Node selector.
+nodeSelector: {}
+# Tolerations.
+tolerations: []
+# Affinity.
+affinity: {}

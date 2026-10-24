@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Components only use the role names below (bg-surface,
+ * text-ink-2, bg-sev-critical...), the values swap per color scheme.
+ *
+ * Severity is an ordered "semantic heat" scale (Critical > High > Medium > Low).
+ * Steps were validated with the dataviz palette checker for stacked bars:
+ * adjacent pairs clear the colour-blind target (OKLab dE >= 8 under protan /
+ * deutan simulation; worst 12.1 light / 11.4 dark) and the normal-vision floor
+ * (dE >= 15; worst 15.1 both modes). Medium/High sit below 3:1 on the light
+ * surface, so a severity colour is never shown alone: badges carry the word,
+ * bars carry the counts next to them and a legend.
+ */
+:root {
+  color-scheme: light;
+  --page: #f4f4f1;
+  --surface: #fcfcfb;
+  --surface-2: #f0efeb;
+  --line: #e1e0d9;
+  --line-strong: #c3c2b7;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6e69;
+  --accent: #256abf;
+  --accent-fill: #2a78d6;
+  --accent-track: #cde2fb;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warn: #fab219;
+  --warn-text: #7a5200;
+  --bad: #d03b3b;
+  --bad-text: #b42d2d;
+  --kev: #b42d2d;
+  --sev-critical: #d03b3b;
+  --sev-high: #dc855d;
+  --sev-medium: #e3b916;
+  --sev-low: #556574;
+  --sev-none: #b9b8b0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --line: #2c2c2a;
+    --line-strong: #383835;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #9e9c95;
+    --accent: #6da7ec;
+    --accent-fill: #3987e5;
+    --accent-track: #184f95;
+    --good: #0ca30c;
+    --good-text: #0ca30c;
+    --warn: #fab219;
+    --warn-text: #fab219;
+    --bad: #e5484d;
+    --bad-text: #f07070;
+    --kev: #b42d2d;
+    --sev-critical: #e5484d;
+    --sev-high: #f19773;
+    --sev-medium: #f2c50e;
+    --sev-low: #637482;
+    --sev-none: #4a4945;
+  }
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-track: var(--accent-track);
+  --color-good: var(--good);
+  --color-good-text: var(--good-text);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-bad: var(--bad);
+  --color-bad-text: var(--bad-text);
+  --color-kev: var(--kev);
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-high: var(--sev-high);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-low: var(--sev-low);
+  --color-sev-none: var(--sev-none);
+
+  --animate-flash: flash 1.8s ease-out both;
+  --animate-arrive: arrive 2.4s ease-out both;
+  --animate-fade-delta: fade-delta 4s ease-out both;
+  --animate-pulse-dot: pulse-dot 2s ease-out infinite;
+  --animate-drawer: drawer-in 180ms ease-out both;
+  --animate-draw: draw 900ms ease-out both;
+  --animate-fade-in: fade-in 900ms ease-out both;
+  --animate-live-ping: live-ping 2.4s ease-out infinite;
+}
+
+@keyframes flash {
+  0% { background-color: color-mix(in oklab, var(--accent-fill) 24%, transparent); }
+  100% { background-color: transparent; }
+}
+
+@keyframes arrive {
+  0% { opacity: 0; transform: translateY(-6px); background-color: color-mix(in oklab, var(--accent-fill) 22%, transparent); }
+  12% { opacity: 1; transform: none; }
+  100% { background-color: transparent; }
+}
+
+@keyframes fade-delta {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--good) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* Chart lines draw in (pathLength=1), their area fades in, the live end pings. */
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes live-ping {
+  0% { transform: scale(1); opacity: 0.5; }
+  80%, 100% { transform: scale(2.8); opacity: 0; }
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+html {
+  background: var(--page);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-fill);
+  outline-offset: 2px;
+}
