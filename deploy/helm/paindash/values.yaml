@@ -163,7 +163,7 @@ serviceMonitor:
   # Scrape timeout; empty uses the Prometheus default.
   scrapeTimeout: ""
 
-# Pod security context.
+# Pod security context. On OpenShift, set runAsUser, runAsGroup and fsGroup to null: the restricted-v2 SCC assigns them.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 10001

@@ -61,6 +61,8 @@ spec:
       automountServiceAccountToken: false
       # Keeps Service variables out of the PAINDASH_ namespace.
       enableServiceLinks: false
+      # EDIT on OpenShift: remove runAsUser, runAsGroup and fsGroup (the
+      # restricted-v2 SCC assigns them).
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

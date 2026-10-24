@@ -620,12 +620,17 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 - **Single replica.** The store's version counter, the read cache, the live hub and the history
   recorder live in the process: run exactly one pod (`replicas: 1`, `Recreate`). An upgrade makes
   the UI unavailable for a few seconds.
-- **Prometheus prerequisite.** Clusters must run kube-state-metrics, with their series queryable
-  through one Prometheus-compatible API. There is no Kubernetes API inventory source yet.
+- **Prometheus prerequisite.** Clusters must run kube-state-metrics (v2.6.0 or later, scraped with
+  `honor_labels: true`), with their series queryable through one Prometheus-compatible API. There
+  is no Kubernetes API inventory source yet.
+- **Finished pods.** Pods of completed Jobs, and failed or evicted pods, stay in the inventory as
+  long as their pod object exists: kube-state-metrics exports their containers whatever the phase.
 - **Memory.** The read dataset (every finding of every running image) is held in memory.
 - **Exposure.** No Gateway API routes yet; only the first Service of each IngressRoute route; Traefik
   IngressRoutes need the kube-state-metrics custom resource configuration; host-network pods are
-  only attributed through EndpointSlices; exposure stops at the Service a route targets.
+  only attributed through EndpointSlices; exposure stops at the Service a route targets. Internal
+  AWS Network Load Balancers count as internet-facing, private load balancers behind a NAT as
+  internal, and an Ingress with only a `defaultBackend` exposes nothing.
 - **Authentication.** Pomerium, or none behind another authenticating proxy.
 - **Fix prompts.** GitHub repositories only.
 - **Rematch scope.** Images that stopped running are not rematched until they run again.

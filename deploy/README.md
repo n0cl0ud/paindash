@@ -29,6 +29,17 @@ the optional `kube_traefik_*` series below, and `kube_endpointslice_endpoints` o
   `prometheus.defaultCluster`): series without the env label get that env, and the env filter
   is off.
 
+kube-state-metrics v2.6.0 or later, scraped with `honor_labels: true` so that its series keep their
+own `namespace`, `pod` and `container` labels. kube-prometheus-stack and kube-prometheus set it; the
+standalone `kube-state-metrics` chart does not (`prometheus.monitor.http.honorLabels: true`).
+Without it, Prometheus renames them `exported_*`, and paindash attributes containers to the
+kube-state-metrics pod and loses the exposure. Check:
+`kube_pod_container_info{exported_namespace!=""}` must return nothing.
+
+Google Cloud Managed Service for Prometheus is not supported yet: its kube-state-metrics example
+keeps only part of these series, and its documentation says that it renames a scraped `namespace`
+label `exported_namespace`.
+
 **Authentication to the Prometheus API**, when it asks for one:
 
 - **Basic auth:** credentials in the URL (`https://user:password@host`). Pass such a URL from a
@@ -73,6 +84,10 @@ extraVolumes:
 extraVolumeMounts:
 - {name: prometheus-auth, mountPath: /var/run/secrets/paindash, readOnly: true}
 ```
+
+**OpenShift.** The `restricted-v2` SCC assigns the user and the fsGroup from the namespace's ranges
+and rejects the chart's fixed 10001: set `podSecurityContext.runAsUser`, `runAsGroup` and `fsGroup`
+to `null`. paindash runs under any UID.
 
 **PostgreSQL 14+.** Not bundled. paindash creates and migrates its own schema in a database it
 owns:
@@ -321,13 +336,23 @@ its pods; the widest exposure wins.
   classes are internal when their name contains `internal` or `private`, internet-facing
   otherwise; so are Ingresses without a class.
 - **LoadBalancer Services:** internal when the load balancer has a private IP (RFC 1918, or
-  `fc00::/7`) or a hostname containing `internal` (AWS internal ELBs), internet-facing otherwise.
+  `fc00::/7`) or a hostname containing `internal` (AWS internal Classic Load Balancers),
+  internet-facing otherwise.
 
 EndpointSlices name the pods behind a Service, host network ones included. Endpoints only give
 IPs, which host network pods share with their node: with Endpoints alone, those pods are not
 attributed. When none of the routing series exist, or a cluster has routes but neither EndpointSlice
 nor Endpoints series (the log names it), paindash reports exposure as unavailable rather than
 marking workloads unexposed.
+
+Known limits:
+
+- **Overstated:** an internal AWS Network Load Balancer (the AWS Load Balancer Controller's
+  default) has no `internal` marker in its hostname and counts as internet-facing.
+- **Understated:** a load balancer with a private IP that a NAT or a port forwarding exposes to the
+  internet (MetalLB on premises, for one) counts as internal; an Ingress with only a
+  `defaultBackend` (no rules) has no `kube_ingress_path` series and exposes nothing; Gateway API
+  routes, OpenShift Routes, Istio gateways and NodePorts are not read.
 
 ## Upgrades
 

@@ -137,7 +137,7 @@ pods:
 |---|---|---|
 | Traefik IngressRoute (HTTP, TCP, UDP) | entrypoint in `PAINDASH_PUBLIC_ENTRYPOINTS` (default `web`, `websecure`), or any unclassified entrypoint | entrypoint ending in `-internal` or `-int` |
 | Ingress | class mapped to `internet` in `PAINDASH_INGRESS_CLASSES`; any other class, or none, unless it is internal | class mapped to `internal`, or an unlisted class whose name contains `internal` or `private` |
-| LoadBalancer Service | any other load balancer | private IP address, or hostname containing `internal` (AWS internal ELBs) |
+| LoadBalancer Service | any other load balancer, internal AWS Network Load Balancers included | private IP address, or hostname containing `internal` (AWS internal Classic Load Balancers) |
 
 A route gives its level to the Service it targets, the Service's EndpointSlices (or Endpoints)
 give it to the pods behind it, and the widest level wins: a workload with one public and one
@@ -624,6 +624,9 @@ A workload can be reachable and still show as not exposed:
   (Pomerium, for example), the proxy's pods are internet-facing, not the app's;
 - it is routed by the Gateway API (not supported yet);
 - it is behind the second or later Service of an IngressRoute route (only the first is exported);
+- it is behind an Ingress with only a `defaultBackend` (no rules, so no `kube_ingress_path`);
+- it is behind a load balancer with a private IP that a NAT exposes to the internet (counted as
+  internal);
 - its pods use the host network and kube-state-metrics exports Endpoints but not EndpointSlices
   (Endpoints only give IPs, and those pods share their node's).
 
