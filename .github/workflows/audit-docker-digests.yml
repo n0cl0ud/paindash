@@ -1,8 +1,8 @@
 ---
 name: Audit Docker Digests
 # Dependabot only tracks `:tag` changes, never `@sha256:` digest pins. This
-# monthly job fails when a base image pinned in the Dockerfile has been
-# republished (security fixes) under the same tag.
+# monthly job fails when an image pinned in the Dockerfile, compose.yaml or a
+# workflow has been republished (security fixes) under the same tag.
 #
 # Fix: contribs/audit-docker-digests --fix, review the diff, open a PR.
 on:

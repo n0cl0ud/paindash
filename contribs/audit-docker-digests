@@ -6,9 +6,10 @@ set -euo pipefail
 # contribs/audit-docker-digests
 # =============================================================================
 # Audits every `<image>:<tag>@sha256:<hex>` pin of the Dockerfile (node,
-# golang, alpine) against the registry's current manifest. Catches digest
-# drift: when an image tag (e.g. alpine:3.24) is republished with security
-# fixes, our Dockerfile still points to the OLD digest until it is re-pinned.
+# golang, alpine), compose.yaml (the demo's Postgres) and the workflows (Trivy,
+# BuildKit, the SBOM scanner) against the registry's current manifest. Catches
+# digest drift: when an image tag (e.g. alpine:3.24) is republished with
+# security fixes, the pin still points to the OLD digest until it is re-pinned.
 #
 # Why: Dependabot only follows `:tag` changes, a tag republished with a new
 # digest is invisible to it. This script fills that gap.
@@ -25,7 +26,7 @@ set -euo pipefail
 # Needs the `docker` CLI (buildx) and `jq`.
 # =============================================================================
 
-FILES=("Dockerfile")
+FILES=("Dockerfile" "compose.yaml" ".github/workflows/verify.yml" ".github/workflows/docker.yml")
 MODE="check"
 PLATFORM="linux/amd64"
 
@@ -185,7 +186,7 @@ for f in "${FILES[@]}"; do
 done
 
 if [[ ${scanned} -eq 0 ]]; then
-  echo "✗ None of the expected Dockerfiles was found: ${FILES[*]}" >&2
+  echo "✗ None of the expected files was found: ${FILES[*]}" >&2
   exit 2
 fi
 
