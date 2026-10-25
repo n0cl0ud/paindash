@@ -16,8 +16,13 @@ function EnvSwitcher({ onChange, onHover }: { onChange: (env: string) => void; o
   const { env, envs } = useEnv();
   const clusters = envs.find((e) => e.name === env)?.clusters ?? [];
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div role="group" aria-label="Environment" className="inline-flex rounded-lg border border-line bg-page p-0.5">
+    <div className="flex max-w-full min-w-0 items-center gap-3">
+      {/* More envs than the width holds (a phone): they wrap, all in sight. */}
+      <div
+        role="group"
+        aria-label="Environment"
+        className="inline-flex min-w-0 flex-wrap rounded-lg border border-line bg-page p-0.5"
+      >
         {envs.map((e, i) => {
           const active = e.name === env;
           return (
@@ -28,9 +33,9 @@ function EnvSwitcher({ onChange, onHover }: { onChange: (env: string) => void; o
               onClick={() => onChange(e.name)}
               onPointerEnter={() => onHover(e.name)}
               onFocus={() => onHover(e.name)}
-              title={`${e.name} (key ${i + 1})`}
+              title={i < 9 ? `${e.name} (key ${i + 1})` : e.name}
               className={cx(
-                "rounded-md px-3.5 py-1 text-sm font-semibold transition-colors",
+                "shrink-0 rounded-md px-3.5 py-1 text-sm font-semibold whitespace-nowrap transition-colors",
                 active ? "bg-ink text-page shadow-sm" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
               )}
             >
