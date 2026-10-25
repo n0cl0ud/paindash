@@ -178,7 +178,7 @@ export function HistoryPanel() {
                 type="button"
                 aria-pressed={compare}
                 onClick={() => setCompare((c) => !c)}
-                title="Overlay prod as a dotted line: the gap is what has not been promoted yet"
+                title={`Overlay ${compareEnv} as a dotted line: the gap is what has not been promoted yet`}
                 className={cx(
                   "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm font-medium",
                   compare ? "border-ink bg-ink text-page" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
@@ -237,6 +237,7 @@ export function HistoryPanel() {
             <HistoryChart
               points={points}
               compare={comparePoints}
+              compareEnv={compareEnv}
               series={series}
               since={data.since}
               now={data.now}
@@ -348,6 +349,7 @@ function Trend({ delta, neutral, label }: { delta: number; neutral: boolean; lab
 function HistoryChart({
   points,
   compare,
+  compareEnv,
   series,
   since,
   now,
@@ -356,6 +358,7 @@ function HistoryChart({
 }: {
   points: HistoryPoint[];
   compare?: HistoryPoint[];
+  compareEnv: string;
   series: Series[];
   since: string;
   now: string;
@@ -521,7 +524,7 @@ function HistoryChart({
                   <Trend delta={last - startValue(points, s.key, t0)} neutral={s.key === "excepted"} label={rangeLabel} />
                 </span>
                 {lastCompare !== undefined && (
-                  <span className="text-xs text-muted tabular-nums">prod {int(lastCompare)}</span>
+                  <span className="text-xs text-muted tabular-nums">{compareEnv} {int(lastCompare)}</span>
                 )}
               </div>
             </div>
@@ -577,6 +580,7 @@ function HistoryChart({
                   live={isLive}
                   series={series}
                   compare={comparedAt(activePoint.t)}
+                  compareEnv={compareEnv}
                   left={cx0}
                   width={plot.width}
                 />
@@ -639,6 +643,7 @@ function Tooltip({
   live,
   series,
   compare,
+  compareEnv,
   left,
   width,
 }: {
@@ -646,6 +651,7 @@ function Tooltip({
   live: boolean;
   series: Series[];
   compare: HistoryPoint | null;
+  compareEnv: string;
   left: number;
   width: number;
 }) {
@@ -665,7 +671,7 @@ function Tooltip({
             </svg>
             <span className="w-8 text-right text-sm font-semibold text-ink tabular-nums">{int(point[s.key])}</span>
             <span className="text-ink-2">{s.label}</span>
-            {compare && <span className="ml-auto text-muted tabular-nums">prod {int(compare[s.key])}</span>}
+            {compare && <span className="ml-auto text-muted tabular-nums">{compareEnv} {int(compare[s.key])}</span>}
           </li>
         ))}
       </ul>
