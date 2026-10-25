@@ -78,7 +78,7 @@ jobs:
     - name: Setup Node
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
-        node-version: 24
+        node-version: 24.22.1 # the Node of the Dockerfile's node image: bump both together
       timeout-minutes: 3
 
     - name: Install (lockfile only, no install scripts)
@@ -188,8 +188,12 @@ jobs:
         persist-credentials: false
       timeout-minutes: 2
 
+    # The BuildKit that builds the image, pinned (the action defaults to the
+    # moving buildx-stable-1 tag). Bump: the version that tag points to.
     - name: Setup docker buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      with:
+        driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
       timeout-minutes: 2
 
     - name: Expose GitHub Runtime env vars
