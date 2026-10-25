@@ -94,7 +94,7 @@ Environment variables (the Helm chart maps its values to them).
 | `PAINDASH_INGRESS_CLASSES` | — | `class=internet` or `class=internal`, comma-separated; unlisted classes are internal when named `*internal*` or `*private*` |
 | `PAINDASH_AUTH` | `pomerium` | `pomerium`, `oidc`, `local`, or `disabled` (see [Security](#security)) |
 | `PAINDASH_POMERIUM_JWKS_URL`, `PAINDASH_POMERIUM_AUDIENCE`, `PAINDASH_POMERIUM_ISSUER` | — | verification of `X-Pomerium-Jwt-Assertion` |
-| `PAINDASH_PUBLIC_URL` | — | `oidc` and `local`: the URL browsers use (redirect URI, cookies, origin of the sign-in form) |
+| `PAINDASH_PUBLIC_URL` | — | `oidc` and `local`: the URL browsers use (redirect URI, cookies, origin of the sign-in form); https, plain http only on localhost |
 | `PAINDASH_OIDC_ISSUER`, `PAINDASH_OIDC_CLIENT_ID`, `PAINDASH_OIDC_CLIENT_SECRET` | — | `oidc`: the provider and the client (no secret for a public client) |
 | `PAINDASH_OIDC_SCOPES`, `PAINDASH_OIDC_GROUPS_CLAIM` | `openid,email,profile`, `groups` | `oidc`: scopes requested; ID token claim holding the groups (`realm_access.roles` reaches into an object) |
 | `PAINDASH_USERS_FILE` | — | `local`: the accounts, `name:bcrypt-hash[:group,…]` lines (`paindash hash-password`), read again when the file changes |

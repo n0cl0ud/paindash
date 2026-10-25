@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -79,6 +80,9 @@ func newSessions(c SessionConfig) (*Sessions, error) {
 	}
 	if c.TTL <= 0 {
 		c.TTL = 12 * time.Hour
+	}
+	if u.Scheme == "http" && !loopback(u.Hostname()) && c.Log != nil {
+		c.Log.Warn("PAINDASH_PUBLIC_URL is plain http: passwords and session cookies travel unencrypted; use https outside a local test", "url", u.String())
 	}
 	return &Sessions{
 		ttl: c.TTL, policy: c.Policy, log: c.Log, aead: aead,
@@ -220,6 +224,12 @@ func localPath(rd string) string {
 		return "/"
 	}
 	return rd
+}
+
+// loopback: hosts browsers treat as a secure context over plain http.
+func loopback(host string) bool {
+	ip := net.ParseIP(host)
+	return host == "localhost" || strings.HasSuffix(host, ".localhost") || ip != nil && ip.IsLoopback()
 }
 
 func (a *Sessions) sessionPurpose() string { return sessionCookie + "/" + a.kind }

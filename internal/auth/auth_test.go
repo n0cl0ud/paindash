@@ -180,6 +180,24 @@ func TestNewSessionsConfig(t *testing.T) {
 	if !a.secure || a.cookieName(sessionCookie) != "__Host-paindash_session" {
 		t.Errorf("https: secure %v, cookie %s", a.secure, a.cookieName(sessionCookie))
 	}
+	// Plain http is for a local test only: elsewhere, a warning at start.
+	for u, warned := range map[string]bool{
+		"http://paindash.example.com":    true,
+		"http://10.0.0.5:8080":           true,
+		"https://paindash.example.com":   false,
+		"http://localhost:8080":          false,
+		"http://127.0.0.1:8080":          false,
+		"http://[::1]:8080":              false,
+		"http://paindash.localhost:8088": false,
+	} {
+		var log bytes.Buffer
+		if _, err := newSessions(SessionConfig{Key: testKey(), PublicURL: u, Log: slog.New(slog.NewTextHandler(&log, nil))}); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(log.String(), "plain http"); got != warned {
+			t.Errorf("%s: warned %v, want %v", u, got, warned)
+		}
+	}
 }
 
 func TestLocalPath(t *testing.T) {

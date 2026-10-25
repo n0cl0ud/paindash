@@ -71,6 +71,7 @@ auth:
   # (accounts of auth.local.existingSecret) or "disabled" (only behind an authenticating proxy).
   mode: pomerium
   # URL browsers use, e.g. https://paindash.example.com; required by oidc and local (redirect URI, cookies).
+  # https; plain http only for a local test (localhost).
   publicUrl: ""
   # Session lifetime in oidc and local modes (binary default 12h).
   sessionTtl: ""

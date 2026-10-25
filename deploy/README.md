@@ -383,7 +383,8 @@ the `__Host-` prefix, over HTTPS), valid `auth.sessionTtl` (12 h by default). pa
 key in its database (table `secrets`; deleting the row signs everyone out at the next restart).
 Nothing is stored server-side: signing out deletes the cookie, a copy of it stays valid until it
 expires. `auth.publicUrl` must be the URL browsers use: the sign-in form only accepts posts from
-that origin.
+that origin. Use https: over plain http, passwords and cookies travel unencrypted, and paindash
+warns at startup unless the host is `localhost` (a local test).
 
 **Other authenticating proxies.** Set `auth.mode=disabled` and put paindash behind the proxy
 (oauth2-proxy, an Ingress with external authentication...). Then **anyone who reaches port 8080
