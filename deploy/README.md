@@ -255,15 +255,19 @@ Pomerium JWKS or the OpenID Connect provider, and, unless `enrichment.enabled=fa
 ## Install with Helm
 
 **Check first** what paindash will see, with a one-off pod that prints the inventory read from
-your Prometheus:
+your Prometheus (or why it cannot):
 
 ```sh
-kubectl run paindash-snapshot --rm -i --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
+kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
   --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
+kubectl wait pod/paindash-snapshot --timeout=2m \
+  --for=jsonpath='{.status.containerStatuses[0].state.terminated}'
+kubectl logs paindash-snapshot; kubectl delete pod paindash-snapshot
 ```
 
 Add `--env=PAINDASH_ENVS=prod,staging,dev` when your environments are not prod, test and dev, and
-`--env=PAINDASH_DEFAULT_ENV=prod` when the series carry no `env` label (a single Prometheus).
+`--env=PAINDASH_DEFAULT_ENV=prod` when the series carry no `env` label (a single Prometheus). A
+shorter `kubectl run --rm -i` loses the table when the pod ends before kubectl attaches to it.
 
 Then, from a clone of the repository:
 

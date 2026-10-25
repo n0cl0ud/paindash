@@ -134,11 +134,14 @@ The details, from data model to security model: [How paindash works](docs/archit
 > Kubernetes API. Details: [Prerequisites](deploy/README.md#prerequisites).
 
 **1. See what paindash will see.** A one-off pod prints the inventory it reads from your
-Prometheus:
+Prometheus (or why it cannot):
 
 ```sh
-kubectl run paindash-snapshot --rm -i --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
+kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
   --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
+kubectl wait pod/paindash-snapshot --timeout=2m \
+  --for=jsonpath='{.status.containerStatuses[0].state.terminated}'
+kubectl logs paindash-snapshot; kubectl delete pod paindash-snapshot
 ```
 
 Add `--env=PAINDASH_ENVS=prod,staging,dev` when your environments are not prod, test and dev, and
