@@ -38,6 +38,7 @@ const RANGES = [
 
 const ROW_H = 56; // plot height of each small multiple
 const PAD = 6; // vertical breathing room inside a plot
+const TOOLTIP_W = 288; // hover card width, narrowed to the chart on phones
 
 // Per-viewer conveniences only: storage may be unavailable.
 function load(key: string, fallback: string): string {
@@ -78,8 +79,8 @@ const tickFmt = {
   month: new Intl.DateTimeFormat("en", { month: "short", year: "2-digit" }),
 };
 
-/** About five ticks on day boundaries, labelled for the span. */
-function timeTicks(t0: number, t1: number): { t: number; label: string }[] {
+/** About five ticks on day boundaries, labelled for the span, at least 56 px apart. */
+function timeTicks(t0: number, t1: number, width: number): { t: number; label: string }[] {
   const DAY = 86_400_000;
   const spanDays = (t1 - t0) / DAY;
   const step = spanDays <= 10 ? 1 : spanDays <= 45 ? 7 : spanDays <= 120 ? 14 : 30;
@@ -90,7 +91,8 @@ function timeTicks(t0: number, t1: number): { t: number; label: string }[] {
   for (let t = first.getTime() + DAY; t < t1; t += step * DAY) {
     if (t > t0) out.push({ t, label: fmt.format(t) });
   }
-  return out;
+  const every = Math.max(1, Math.ceil((out.length * 56) / width));
+  return out.filter((_, i) => i % every === 0);
 }
 
 function useWidth<T extends HTMLElement>() {
@@ -370,6 +372,7 @@ function HistoryChart({
   const uid = useId();
   const rangeLabel = RANGES.find((r) => r.days === days)?.label.toLowerCase() ?? "";
   const [plotRef, plot] = useWidth<HTMLDivElement>();
+  const [boxRef, box] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const [pinned, setPinned] = useState<number | null>(null);
   const W = Math.max(plot.width, 1);
@@ -440,13 +443,13 @@ function HistoryChart({
     .map((p, i) => ({ i, p, kind: kindOf(p.changes) }))
     .filter((m) => m.kind && Date.parse(m.p.t) >= t0);
   const young = start !== null && Date.parse(start) > t0;
-  const ticks = timeTicks(t0, t1);
+  const ticks = timeTicks(t0, t1, W);
   const cx0 = activePoint ? x(activePoint.t) : 0;
   const pinnedPoint = pinned !== null ? points[pinned] : null;
 
   return (
     <div>
-      <div className="relative" onPointerLeave={() => setHover(null)}>
+      <div ref={boxRef} className="relative" onPointerLeave={() => setHover(null)}>
         {series.map((s, si) => {
           const y = (v: number) => PAD + (1 - v / yMax[s.key]) * (ROW_H - 2 * PAD);
           const last = points[points.length - 1][s.key];
@@ -454,16 +457,24 @@ function HistoryChart({
           const line = roundedStepPath(points, s.key, x, y);
           const xs = [x(points[0].t), W];
           const gid = `${uid}-${s.key}`;
+          // Phones: the name and the value above a full-width plot.
           return (
-            <div key={s.key} className="grid grid-cols-[9.5rem_1fr_6.5rem] items-stretch gap-3 py-1">
-              <div className="flex flex-col justify-between py-1 text-right">
+            <div
+              key={s.key}
+              className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 py-1 sm:grid-cols-[9.5rem_1fr_6.5rem] sm:items-stretch"
+            >
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-between sm:py-1 sm:text-right">
                 <span className="inline-flex items-center justify-end gap-1.5 text-xs font-medium text-ink-2" title={s.hint}>
                   <span className="size-2 rounded-full" style={{ background: s.color }} aria-hidden="true" />
                   {s.label}
                 </span>
                 <span className="text-[10px] leading-none text-muted tabular-nums">0–{int(yMax[s.key])}</span>
               </div>
-              <div ref={si === 0 ? plotRef : undefined} className="relative" style={{ height: ROW_H }}>
+              <div
+                ref={si === 0 ? plotRef : undefined}
+                className="relative order-last col-span-2 sm:order-none sm:col-span-1"
+                style={{ height: ROW_H }}
+              >
                 <svg key={days} width={W} height={ROW_H} className="block overflow-visible" aria-hidden="true">
                   <defs>
                     <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -520,7 +531,7 @@ function HistoryChart({
                   )}
                 </svg>
               </div>
-              <div className="flex flex-col justify-center gap-0.5">
+              <div className="flex flex-col items-end justify-center gap-0.5 sm:items-stretch">
                 <span className="flex items-baseline gap-2">
                   <span className="text-xl leading-none font-semibold text-ink">{int(last)}</span>
                   <Trend delta={last - startValue(points, s.key, t0)} neutral={s.key === "excepted"} label={rangeLabel} />
@@ -534,8 +545,13 @@ function HistoryChart({
         })}
 
         {/* Time axis: change markers, then dates. */}
-        <div className="grid grid-cols-[9.5rem_1fr_5rem] gap-3">
-          <span className="pt-1 text-right text-[10px] text-muted">
+        <div className="grid gap-x-3 sm:grid-cols-[9.5rem_1fr_5rem]">
+          <span
+            className={cx(
+              "order-last pt-1 text-[10px] text-muted sm:order-none sm:block sm:text-right",
+              !(young && start) && "hidden",
+            )}
+          >
             {young && start ? `since ${day(start)}` : ""}
           </span>
           <svg width={W} height={30} className="block overflow-visible" aria-hidden="true">
@@ -554,7 +570,7 @@ function HistoryChart({
               );
             })}
           </svg>
-          <span className="pt-1 text-[10px] text-muted">now</span>
+          <span className="hidden pt-1 text-[10px] text-muted sm:block">now</span>
         </div>
 
         {/* Hover layer over the plots and the axis. */}
@@ -585,6 +601,8 @@ function HistoryChart({
                   compareEnv={compareEnv}
                   left={cx0}
                   width={plot.width}
+                  plotLeft={plot.left}
+                  boxWidth={box.width}
                 />
               )}
             </>
@@ -592,7 +610,7 @@ function HistoryChart({
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 pl-[calc(9.5rem+0.75rem)] text-xs text-muted">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted sm:pl-[calc(9.5rem+0.75rem)]">
         <span className="inline-flex items-center gap-1.5">
           <svg width="10" height="10" aria-hidden="true">
             <Marker kind="deploy" x={5} y={0} />
@@ -648,6 +666,8 @@ function Tooltip({
   compareEnv,
   left,
   width,
+  plotLeft,
+  boxWidth,
 }: {
   point: HistoryPoint;
   live: boolean;
@@ -656,13 +676,18 @@ function Tooltip({
   compareEnv: string;
   left: number;
   width: number;
+  plotLeft: number;
+  boxWidth: number;
 }) {
-  const flip = left > width * 0.55;
+  // Beside the crosshair, on the side with more room, and inside the chart.
+  const w = Math.min(TOOLTIP_W, boxWidth);
+  const beside = left > width * 0.55 ? left - 12 - w : left + 12;
+  const x = Math.max(-plotLeft, Math.min(beside, boxWidth - plotLeft - w));
   const shown = point.changes.slice(-3);
   return (
     <div
-      className="pointer-events-none absolute top-2 z-10 w-72 rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-lg"
-      style={flip ? { right: width - left + 12 } : { left: left + 12 }}
+      className="pointer-events-none absolute top-2 z-10 rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-lg"
+      style={{ left: x, width: w }}
     >
       <div className="mb-1.5 font-medium text-ink-2">{live ? "Now" : absDate(point.t)}</div>
       <ul className="space-y-0.5">
