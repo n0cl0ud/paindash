@@ -12,7 +12,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:d530cf60723abf1ffae0cd16bb546b379ec0550d2f3815e5b16ed69dbc00fba4 AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS build
 ARG TARGETOS TARGETARCH
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 WORKDIR /src
@@ -29,7 +29,7 @@ RUN go build -trimpath -ldflags="-s -w" -o /out/paindash ./cmd/paindash
 
 # syft and grype built from their pinned sources with our patched Go toolchain
 # and dependency overrides (tools/*/go.mod), instead of the release binaries.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:d530cf60723abf1ffae0cd16bb546b379ec0550d2f3815e5b16ed69dbc00fba4 AS scanners
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS scanners
 ARG TARGETOS TARGETARCH
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 WORKDIR /src/tools
@@ -41,7 +41,7 @@ RUN for t in syft grype; do \
         -o "/out/$t" "github.com/anchore/$t/cmd/$t" || exit 1; \
     done
 
-FROM alpine:3.24@sha256:71e9b7bae160ba167fa17414401b94cbcdaf3c32feeab9298bd794a2a0614c35
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 # The CA bundle Go reads (/etc/ssl/certs/ca-certificates.crt) ships with the
 # pinned base image: nothing is fetched at build time.
 RUN adduser -D -u 10001 paindash
