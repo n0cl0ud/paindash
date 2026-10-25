@@ -71,12 +71,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "paindash.validate" -}}
 {{- $pgEnv := false }}
 {{- $promEnv := false }}
+{{- $pomeriumEnv := false }}
 {{- range .Values.extraEnv }}
 {{- if has .name (list "PAINDASH_DATABASE_URL" "PGHOST") }}
 {{- $pgEnv = true }}
 {{- end }}
 {{- if eq .name "PAINDASH_PROMETHEUS_URL" }}
 {{- $promEnv = true }}
+{{- end }}
+{{- if has .name (list "PAINDASH_POMERIUM_JWKS_URL" "PAINDASH_POMERIUM_AUDIENCE") }}
+{{- $pomeriumEnv = true }}
 {{- end }}
 {{- end }}
 {{- if not (or .Values.database.url .Values.database.existingSecret $pgEnv .Values.envFrom) }}
@@ -90,6 +94,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- if not (has .Values.auth.mode (list "pomerium" "oidc" "local" "disabled")) }}
 {{- fail (printf "auth.mode: %q, want \"pomerium\", \"oidc\", \"local\" or \"disabled\"" (toString .Values.auth.mode)) }}
+{{- end }}
+{{- if and (eq .Values.auth.mode "pomerium") (not (or (and .Values.auth.pomerium.jwksUrl .Values.auth.pomerium.audience) $pomeriumEnv .Values.envFrom)) }}
+{{- fail "auth.mode pomerium (the default) needs auth.pomerium.jwksUrl and auth.pomerium.audience; without Pomerium, set auth.mode to oidc, local or disabled" }}
 {{- end }}
 {{- if and (has .Values.auth.mode (list "oidc" "local")) (not .Values.auth.publicUrl) }}
 {{- fail (printf "auth.mode %s needs auth.publicUrl: the URL browsers use, e.g. https://paindash.example.com" .Values.auth.mode) }}

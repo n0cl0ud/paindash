@@ -265,7 +265,8 @@ envs: [prod]
 
 Every value is documented in [`values.yaml`](helm/paindash/values.yaml); empty values leave the
 binary's defaults. Rendering fails without a database (`database.url`, `database.existingSecret`,
-or `PG*` variables through `extraEnv`/`envFrom`) or without `prometheus.url`.
+or `PG*` variables through `extraEnv`/`envFrom`), without `prometheus.url`, or with an incomplete
+`auth` (the default mode, `pomerium`, needs `auth.pomerium.jwksUrl` and `auth.pomerium.audience`).
 
 **Demo.** `demo.enabled=true` simulates clusters and a scanner with fake CVEs (`CVE-2099-*`); it
 needs no Prometheus but still needs PostgreSQL. It does not change authentication: set

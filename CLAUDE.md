@@ -19,7 +19,7 @@ make snapshot PROMETHEUS_URL=http://localhost:9090   # inventory seen through Pr
 paindash scan <repo@sha256:…>                         # syft + grype on one image
 paindash hash-password                                # bcrypt hash for PAINDASH_USERS_FILE (local accounts)
 docker compose --profile demo up --build              # the demo, fully in containers
-helm lint deploy/helm/paindash --set database.url=postgres://u:p@db/x --set prometheus.url=http://p:9090
+helm lint deploy/helm/paindash --set database.url=postgres://u:p@db/x --set prometheus.url=http://p:9090 --set auth.mode=disabled
 ```
 
 The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`, or the embed fails.
