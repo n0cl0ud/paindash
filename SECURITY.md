@@ -35,3 +35,6 @@ The latest release.
 - **Supply chain.** syft and grype are built from pinned sources; every base image and CI action is
   pinned by digest; images are scanned before they are pushed and carry SLSA provenance and an
   SBOM.
+- **Runtime image.** Chainguard static (Wolfi): no shell, no package manager, no libc, a CA bundle
+  that follows Mozilla's. It runs as UID 10001 with a read-only root filesystem (chart and
+  manifests); to look inside the pod, attach an ephemeral container with `kubectl debug`.

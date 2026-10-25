@@ -6,10 +6,11 @@ set -euo pipefail
 # contribs/audit-docker-digests
 # =============================================================================
 # Audits every `<image>:<tag>@sha256:<hex>` pin of the Dockerfile (node,
-# golang, alpine), compose.yaml (the demo's Postgres) and the workflows (Trivy,
-# BuildKit, the SBOM scanner) against the registry's current manifest. Catches
-# digest drift: when an image tag (e.g. alpine:3.24) is republished with
-# security fixes, the pin still points to the OLD digest until it is re-pinned.
+# golang, chainguard/static), compose.yaml (the demo's Postgres) and the
+# workflows (Trivy, BuildKit, the SBOM scanner) against the registry's current
+# manifest. Catches digest drift: when an image tag (e.g. golang:1.27.3-alpine)
+# is republished with security fixes, the pin still points to the OLD digest
+# until it is re-pinned.
 #
 # Why: Dependabot only follows `:tag` changes, a tag republished with a new
 # digest is invisible to it. This script fills that gap.

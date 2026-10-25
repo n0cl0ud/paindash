@@ -4,8 +4,9 @@
 
 - Environment switcher: wraps when the environments do not fit the width (a phone) instead of
   widening the page; only the first nine announce a key, as only keys 1 to 9 switch.
-- Image: every input pinned. The CA bundle is the one of the Alpine base image (no package fetched at
-  build time), and BuildKit is pinned by digest in CI.
+- Image: Chainguard static base (Wolfi) instead of Alpine: no shell, no package manager, no libc,
+  only a current CA bundle, time zones and base files. Every build input is pinned by digest,
+  BuildKit included.
 
 ## 0.1.0
 

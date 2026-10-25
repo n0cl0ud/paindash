@@ -41,14 +41,17 @@ RUN for t in syft grype; do \
         -o "/out/$t" "github.com/anchore/$t/cmd/$t" || exit 1; \
     done
 
-FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
-# The CA bundle Go reads (/etc/ssl/certs/ca-certificates.crt) ships with the
-# pinned base image: nothing is fetched at build time.
-RUN adduser -D -u 10001 paindash
+# Runtime: Chainguard static (Wolfi). No shell, no package manager, no libc: a
+# CA bundle that follows Mozilla's (Debian stable's lags by a release), time
+# zones and /tmp, enough for the four binaries, all static (CGO_ENABLED=0).
+# Nothing is fetched or run at build time. The free image only comes as
+# "latest": the digest audit re-pins it, which keeps the CA bundle current.
+FROM cgr.dev/chainguard/static:latest@sha256:c12f0107f8afb0bbc1b0eff96ff8675e85a10c6083d039b777c51fef5c27420f
 COPY --from=scanners /out/syft /out/grype /usr/local/bin/
 COPY --from=build /out/docker-credential-ecr-login /usr/local/bin/
 COPY --from=build /out/paindash /usr/local/bin/paindash
-USER 10001
+# The UID the chart and manifests run it as (the base's nonroot user is 65532).
+USER 10001:10001
 ENV GRYPE_DB_CACHE_DIR=/var/cache/paindash/grype \
     SYFT_CHECK_FOR_APP_UPDATE=false \
     GRYPE_CHECK_FOR_APP_UPDATE=false
