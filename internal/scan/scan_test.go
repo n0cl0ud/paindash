@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,9 @@ import (
 func TestSBOMOtherPlatform(t *testing.T) {
 	if otherPlatform == "" {
 		t.Skip("no other platform for this architecture")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake syft is a shell script")
 	}
 	// A fake syft for an image that only has a variant for the other platform.
 	syft := filepath.Join(t.TempDir(), "syft")
