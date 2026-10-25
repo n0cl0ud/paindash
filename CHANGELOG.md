@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
+A hardened image, and fixes for many environments and the install steps.
+
+- Install: the snapshot check reads the pod's log, as `kubectl run --rm -i` could lose its output.
 - Environment switcher: wraps when the environments do not fit the width (a phone) instead of
   widening the page; only the first nine announce a key, as only keys 1 to 9 switch.
-- Image: Chainguard static base (Wolfi) instead of Alpine: no shell, no package manager, no libc,
-  only a current CA bundle, time zones and base files. Every build input is pinned by digest,
-  BuildKit included.
+- Image: Chainguard static base (Wolfi) instead of Alpine: no shell (`kubectl debug` to look
+  inside), no package manager, no libc, only a current CA bundle, time zones and base files. Every
+  build input is pinned by digest, BuildKit included.
 
 ## 0.1.0
 

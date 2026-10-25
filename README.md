@@ -137,7 +137,7 @@ The details, from data model to security model: [How paindash works](docs/archit
 Prometheus (or why it cannot):
 
 ```sh
-kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
+kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.1 \
   --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
 kubectl wait pod/paindash-snapshot --timeout=2m \
   --for=jsonpath='{.status.containerStatuses[0].state.terminated}'

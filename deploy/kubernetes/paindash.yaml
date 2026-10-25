@@ -73,7 +73,7 @@ spec:
       containers:
       - name: paindash
         # EDIT if you pin by digest: append @sha256:<digest>, given by the release notes.
-        image: ghcr.io/n0cl0ud/paindash:0.1.0
+        image: ghcr.io/n0cl0ud/paindash:0.1.1
         imagePullPolicy: IfNotPresent
         env:
         - name: PAINDASH_DATABASE_URL
