@@ -325,8 +325,8 @@
 <rect x="1240" y="486" width="136" height="64" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
 <circle cx="1262" cy="518" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
 <g transform="translate(1262,518) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><rect x="-6.5" y="-1.5" width="13" height="9.5" rx="2"/><path d="M-4,-1.5 V-4 A4,4 0 0,1 4,-4 V-1.5 M0,2.2 V4.5"/></g>
-<text x="1282" y="516" font-size="13" fill="#f1f5f9" font-weight="700">Pomerium</text>
-<text x="1282" y="532" font-size="10.5" fill="#94a3b8">auth (SSO)</text>
+<text x="1282" y="516" font-size="13" fill="#f1f5f9" font-weight="700">Sign-in</text>
+<text x="1282" y="532" font-size="10.5" fill="#94a3b8">SSO or local</text>
 <rect x="1240" y="388" width="136" height="52" rx="10" fill="url(#cardGrad)" stroke="#4facfe" stroke-width="1" stroke-opacity="0.35" filter="url(#cardShadow)"/>
 <circle cx="1262" cy="414" r="14" fill="#4facfe" fill-opacity="0.12" stroke="#4facfe" stroke-opacity="0.5" stroke-width="1.2"/>
 <g transform="translate(1262,414) scale(0.72)" fill="none" stroke="#4facfe" stroke-width="2.22" stroke-linecap="round" stroke-linejoin="round"><circle cx="-2.5" cy="-3.5" r="3"/><path d="M-8,7 C-8,2.5 -5.5,0.5 -2.5,0.5 C0.5,0.5 3,2.5 3,7"/><circle cx="4.5" cy="-4" r="2.4"/><path d="M5,0.3 C7.5,0.6 9,2.8 9,6"/></g>
@@ -357,8 +357,8 @@
 <rect x="1188.7" y="677" width="46.5995" height="18" rx="9" fill="#0b1020" stroke="#34d399" stroke-width="1" stroke-opacity="0.6"/>
 <text x="1212" y="689.6" font-size="10" fill="#34d399" font-weight="600" text-anchor="middle">prompt</text>
 <path d="M1308,485 L1308,442" fill="none" stroke="#4facfe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
-<rect x="1268.25" y="456" width="79.508" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
-<text x="1308" y="468.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">HTTPS + SSO</text>
+<rect x="1262.5" y="456" width="91" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
+<text x="1308" y="468.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">HTTPS + sign-in</text>
 <path d="M1308,719 L1308,762" fill="none" stroke="#4facfe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#mkBlue)"/>
 <rect x="1287.22" y="730" width="41.5525" height="18" rx="9" fill="#0b1020" stroke="#4facfe" stroke-width="1" stroke-opacity="0.6"/>
 <text x="1308" y="742.6" font-size="10" fill="#4facfe" font-weight="600" text-anchor="middle">opens</text>
@@ -405,30 +405,30 @@
 <text x="156.667" y="800" font-size="12.5" fill="#34d399" font-weight="700" class="mono">:9090</text>
 <rect x="253.333" y="768" width="98.6667" height="36" rx="7" fill="#0b1222" stroke="#1e3a5f" stroke-width="1"/>
 <text x="263.333" y="783" font-size="8.5" fill="#64748b" font-weight="700" letter-spacing="1">AUTH</text>
-<text x="263.333" y="800" font-size="12.5" fill="#4facfe" font-weight="700">Pomerium</text>
+<text x="263.333" y="800" font-size="12.5" fill="#4facfe" font-weight="700">SSO, local</text>
 <line x1="24" y1="848" x2="1376" y2="848" stroke="url(#fadeH)" stroke-width="1"/>
-<rect x="294.239" y="866" width="35.4261" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
-<text x="311.952" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Go</text>
-<rect x="339.665" y="866" width="121.024" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
-<text x="400.177" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">React + TypeScript</text>
-<rect x="470.689" y="866" width="42.2807" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
-<text x="491.829" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">syft</text>
-<rect x="522.97" y="866" width="50.325" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
-<text x="548.132" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">grype</text>
-<rect x="583.295" y="866" width="83.8618" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
-<text x="625.226" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">PostgreSQL</text>
-<rect x="677.157" y="866" width="83.4086" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
-<text x="718.861" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Prometheus</text>
-<rect x="770.565" y="866" width="73.7215" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
-<text x="807.426" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">Pomerium</text>
-<rect x="854.287" y="866" width="69.6427" height="24" rx="7" fill="#34d399" fill-opacity="0.08" stroke="#34d399" stroke-width="1" stroke-opacity="0.3"/>
-<text x="889.108" y="882" font-size="11" fill="#34d399" font-weight="600" text-anchor="middle">OpenVEX</text>
-<rect x="933.929" y="866" width="73.5515" height="24" rx="7" fill="#f87171" fill-opacity="0.08" stroke="#f87171" stroke-width="1" stroke-opacity="0.3"/>
-<text x="970.705" y="882" font-size="11" fill="#f87171" font-weight="600" text-anchor="middle">CISA KEV</text>
-<rect x="1017.48" y="866" width="88.2805" height="24" rx="7" fill="#fbbf24" fill-opacity="0.08" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.3"/>
-<text x="1061.62" y="882" font-size="11" fill="#fbbf24" font-weight="600" text-anchor="middle">FIRST EPSS</text>
+<rect x="307.350" y="866" width="35.4261" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="325.063" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Go</text>
+<rect x="352.776" y="866" width="121.024" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="413.288" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">React + TypeScript</text>
+<rect x="483.800" y="866" width="42.2807" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
+<text x="504.940" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">syft</text>
+<rect x="536.081" y="866" width="50.325" height="24" rx="7" fill="#a78bfa" fill-opacity="0.08" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.3"/>
+<text x="561.243" y="882" font-size="11" fill="#a78bfa" font-weight="600" text-anchor="middle">grype</text>
+<rect x="596.406" y="866" width="83.8618" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
+<text x="638.337" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">PostgreSQL</text>
+<rect x="690.268" y="866" width="83.4086" height="24" rx="7" fill="#22d3ee" fill-opacity="0.08" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.3"/>
+<text x="731.972" y="882" font-size="11" fill="#22d3ee" font-weight="600" text-anchor="middle">Prometheus</text>
+<rect x="783.676" y="866" width="47.5" height="24" rx="7" fill="#4facfe" fill-opacity="0.08" stroke="#4facfe" stroke-width="1" stroke-opacity="0.3"/>
+<text x="807.426" y="882" font-size="11" fill="#4facfe" font-weight="600" text-anchor="middle">OIDC</text>
+<rect x="841.176" y="866" width="69.6427" height="24" rx="7" fill="#34d399" fill-opacity="0.08" stroke="#34d399" stroke-width="1" stroke-opacity="0.3"/>
+<text x="875.997" y="882" font-size="11" fill="#34d399" font-weight="600" text-anchor="middle">OpenVEX</text>
+<rect x="920.818" y="866" width="73.5515" height="24" rx="7" fill="#f87171" fill-opacity="0.08" stroke="#f87171" stroke-width="1" stroke-opacity="0.3"/>
+<text x="957.594" y="882" font-size="11" fill="#f87171" font-weight="600" text-anchor="middle">CISA KEV</text>
+<rect x="1004.369" y="866" width="88.2805" height="24" rx="7" fill="#fbbf24" fill-opacity="0.08" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.3"/>
+<text x="1048.509" y="882" font-size="11" fill="#fbbf24" font-weight="600" text-anchor="middle">FIRST EPSS</text>
 <text x="700" y="918" font-size="11.5" fill="#475569" text-anchor="middle"><tspan fill="#a78bfa" font-weight="700">paindash</tspan> reads what runs, scans each image once, and rematches every stored SBOM whenever the vulnerability database changes</text>
-<text x="700" y="936" font-size="10.5" fill="#334155" text-anchor="middle">No agent in the clusters · never writes to a cluster or a registry · UI behind Pomerium</text>
+<text x="700" y="936" font-size="10.5" fill="#334155" text-anchor="middle">No agent in the clusters · never writes to a cluster or a registry · sign-in with SSO or local accounts</text>
 <path d="M14,36 L14,14 L36,14" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
 <path d="M1386,36 L1386,14 L1364,14" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
 <path d="M14,928 L14,950 L36,950" fill="none" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
