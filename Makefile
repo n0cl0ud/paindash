@@ -8,8 +8,13 @@ web:
 build: web
 	go build -o bin/paindash ./cmd/paindash
 
-test:
+test: web/dist/index.html
 	go vet ./... && go test ./...
+
+# web/embed.go embeds web/dist: on a fresh clone, an empty UI is enough to
+# compile the tests. `make web` replaces it.
+web/dist/index.html:
+	mkdir -p web/dist && touch $@
 
 # Simulated clusters + scanner, no auth: http://localhost:8080
 demo: build
