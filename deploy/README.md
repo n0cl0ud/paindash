@@ -277,6 +277,10 @@ kubectl -n paindash create secret generic paindash-db --from-literal=url="$DATAB
 helm install paindash deploy/helm/paindash -n paindash -f values.yaml
 ```
 
+The chart pulls the image by tag, its `appVersion`. To pull it by digest, add
+`--set image.digest=sha256:...` with the digest given in the
+[release notes](https://github.com/n0cl0ud/paindash/releases).
+
 Example `values.yaml`, several clusters behind Thanos, users signed in by Pomerium:
 
 ```yaml
