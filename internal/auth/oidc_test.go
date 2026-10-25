@@ -162,7 +162,7 @@ func (f *fakeIdP) login(t *testing.T, b *browser, page string) *http.Response {
 
 func TestOIDCSignIn(t *testing.T) {
 	f := newFakeIdP(t)
-	_, b := oidcSite(t, f, Policy{Editors: []string{"sec"}}, "")
+	a, b := oidcSite(t, f, Policy{Editors: []string{"sec"}}, "")
 	f.set(map[string]any{"email": "alice@example.com", "email_verified": true, "groups": []string{"dev", "sec"}})
 	res := f.login(t, b, "/vulns?env=prod")
 	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/vulns?env=prod" {
@@ -174,6 +174,9 @@ func TestOIDCSignIn(t *testing.T) {
 	u := b.user(t)
 	if u == nil || u.Email != "alice@example.com" || !u.CanEdit || strings.Join(u.Groups, ",") != "sec" {
 		t.Errorf("user: %+v", u)
+	}
+	if s := opened(t, a, b); s.Method != methodOIDC || time.Since(time.Unix(s.SignedIn, 0)) > time.Minute {
+		t.Errorf("session: %+v", s)
 	}
 	// Signed in: /auth/login goes straight back.
 	if res := b.do(http.MethodGet, "/auth/login?rd=%2Fworkloads", nil); res.Header.Get("Location") != "/workloads" {

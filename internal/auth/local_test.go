@@ -56,7 +56,7 @@ func signIn(b *browser, name, password, rd string) *http.Response {
 func TestLocalSignIn(t *testing.T) {
 	accounts := "# comment\n\nalice@example.com:" + hash(t, "correct horse battery") + ":sec,dev\n" +
 		"Bob:" + hash(t, "staple battery horse") + "\n"
-	a, _, _ := localSite(t, accounts, Policy{Editors: []string{"sec"}})
+	a, clk, _ := localSite(t, accounts, Policy{Editors: []string{"sec"}})
 	b := newBrowser(a.Middleware(echo), site)
 
 	res := signIn(b, "alice@example.com", "wrong password", "/vulns")
@@ -81,6 +81,9 @@ func TestLocalSignIn(t *testing.T) {
 	u := b.user(t)
 	if u == nil || u.Email != "alice@example.com" || !u.CanEdit || strings.Join(u.Groups, ",") != "sec,dev" {
 		t.Errorf("alice: %+v", u)
+	}
+	if s := opened(t, a, b); s.Method != methodPassword || s.SignedIn != clk.t.Unix() || s.Expires != clk.t.Add(12*time.Hour).Unix() {
+		t.Errorf("session: %+v", s)
 	}
 
 	// Names are case-insensitive; Bob has no editor group: read-only.

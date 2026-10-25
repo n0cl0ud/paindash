@@ -163,7 +163,7 @@ func (a *Sessions) callback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	a.signIn(w, r, identity(claims), stringsAt(claims, a.oidc.cfg.GroupsClaim), "", ls.RD)
+	a.signIn(w, r, session{Email: identity(claims), Groups: stringsAt(claims, a.oidc.cfg.GroupsClaim), Method: methodOIDC}, ls.RD)
 }
 
 // identity names the user: the email, unless the provider says it is not

@@ -60,7 +60,17 @@ type session struct {
 	Groups  []string `json:"g,omitempty"`
 	Expires int64    `json:"x"`
 	Check   string   `json:"c,omitempty"` // local: fingerprint of the password hash
+	// How and when the user signed in, for actions that will want a recent
+	// sign-in, such as enrolling a passkey (ROADMAP).
+	Method   string `json:"m,omitempty"`
+	SignedIn int64  `json:"t,omitempty"`
 }
+
+// Sign-in methods recorded in sessions.
+const (
+	methodPassword = "password"
+	methodOIDC     = "oidc"
+)
 
 func newSessions(c SessionConfig) (*Sessions, error) {
 	if len(c.Key) != 32 {
@@ -147,22 +157,24 @@ func (a *Sessions) current(r *http.Request) *model.User {
 }
 
 // signIn opens the session of an authenticated user and goes back to rd.
-func (a *Sessions) signIn(w http.ResponseWriter, r *http.Request, email string, groups []string, check, rd string) {
-	if !a.policy.allows(groups) {
-		a.log.Warn("sign-in refused: in none of the allowed groups", "user", email)
+func (a *Sessions) signIn(w http.ResponseWriter, r *http.Request, s session, rd string) {
+	if !a.policy.allows(s.Groups) {
+		a.log.Warn("sign-in refused: in none of the allowed groups", "user", s.Email)
 		a.render(w, http.StatusForbidden, page{Title: "Access denied", Message: "Your account is not allowed in paindash. Ask an administrator to add you to an allowed group."})
 		return
 	}
 	if a.local != nil {
-		groups = nil // read from the accounts file on every request
+		s.Groups = nil // read from the accounts file on every request
 	}
-	v, err := a.seal(session{Email: email, Groups: a.policy.relevant(groups), Expires: a.now().Add(a.ttl).Unix(), Check: check}, a.sessionPurpose())
+	now := a.now()
+	s.Groups, s.SignedIn, s.Expires = a.policy.relevant(s.Groups), now.Unix(), now.Add(a.ttl).Unix()
+	v, err := a.seal(s, a.sessionPurpose())
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
 	a.setCookie(w, sessionCookie, v, a.ttl)
-	a.log.Info("signed in", "user", email)
+	a.log.Info("signed in", "user", s.Email)
 	http.Redirect(w, r, rd, http.StatusSeeOther)
 }
 

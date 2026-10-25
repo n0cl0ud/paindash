@@ -106,7 +106,7 @@ func (a *Sessions) loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.local.limiter.reset(name)
-	a.signIn(w, r, acc.name, acc.groups, fingerprint(acc.hash), rd)
+	a.signIn(w, r, session{Email: acc.name, Groups: acc.groups, Check: fingerprint(acc.hash), Method: methodPassword}, rd)
 }
 
 // dummy is compared when the account does not exist, so that the answer takes

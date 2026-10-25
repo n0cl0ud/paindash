@@ -97,6 +97,16 @@ func (b *browser) user(t *testing.T) *model.User {
 	return u
 }
 
+// opened returns the session of the cookie b holds, as a reads it.
+func opened(t *testing.T, a *Sessions, b *browser) session {
+	t.Helper()
+	var s session
+	if c := b.cookies[a.cookieName(sessionCookie)]; c == nil || !a.open(c.Value, a.sessionPurpose(), &s) {
+		t.Fatal("no session cookie")
+	}
+	return s
+}
+
 func body(res *http.Response) string {
 	b, _ := io.ReadAll(res.Body)
 	return string(b)
