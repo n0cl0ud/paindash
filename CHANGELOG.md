@@ -1,13 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Sign-in without a proxy: OpenID Connect (`PAINDASH_AUTH=oidc`, authorization code with PKCE) or
-  local accounts from a file of bcrypt hashes (`PAINDASH_AUTH=local`, `paindash hash-password`; `*`
-  in front of a hash locks an account), kept in an encrypted session cookie; a "Sign out" button.
-- Read-only users: `PAINDASH_EDITOR_GROUPS` limits who records and revokes exceptions, in every
-  authentication mode.
-
 ## 0.1.0
 
 First public release.
@@ -25,4 +17,9 @@ First public release.
 - Exceptions as expiring OpenVEX "not affected" statements, exported as an OpenVEX document.
 - Fix prompts (experimental) per workload and per vulnerability, for coding agents.
 - Prometheus metrics per environment and workload.
-- Pomerium authentication; Helm chart, plain manifests, docker compose demo; amd64 and arm64 images.
+- Sign-in through Pomerium (its signed assertion), OpenID Connect (authorization code with PKCE) or
+  local accounts from a file of bcrypt hashes (`paindash hash-password`; `*` in front of a hash
+  locks an account), the last two kept in an encrypted session cookie; a "Sign out" button.
+- Read-only users: `PAINDASH_EDITOR_GROUPS` limits who records and revokes exceptions, in every
+  authentication mode.
+- Helm chart, plain manifests, docker compose demo; amd64 and arm64 images.

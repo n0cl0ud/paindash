@@ -143,8 +143,9 @@ OCI `source` and `revision` labels, guessed from the image name otherwise (and f
 ## Packaging
 
 ### 19. v0.1 scope
-**Decision.** Ship: Prometheus source, Ingress/LB/Traefik exposure, Pomerium or disabled auth,
-minimal Helm chart without bundled PostgreSQL, plain manifests, compose demo, multi-arch image.
+**Decision.** Ship: Prometheus source, Ingress/LB/Traefik exposure, Pomerium, OpenID Connect,
+local accounts or disabled auth, minimal Helm chart without bundled PostgreSQL, plain manifests,
+compose demo, multi-arch image.
 Defer: Kubernetes API source, Gateway API, oauth2-proxy headers, cosign signatures.
 **Why.** Each generalization built without real users would be subtly wrong; wait for their needs.
 
