@@ -2,10 +2,10 @@
 
 paindash is a real-time CVE dashboard of what actually runs on Kubernetes: it reads image digests
 from kube-state-metrics through a Prometheus-compatible API, scans each digest once (syft SBOM,
-stored), matches it with grype, rematches every stored SBOM when the vulnerability DB changes, and
-serves a React UI, a live SSE feed and Prometheus metrics. Read [README.md](README.md) first, then
-[docs/architecture.md](docs/architecture.md), [docs/decisions.md](docs/decisions.md) (why things
-are the way they are) and [ROADMAP.md](ROADMAP.md) (what is next, known issues).
+stored), matches it with grype, rematches the SBOMs of running images when the vulnerability DB
+changes, and serves a React UI, a live SSE feed and Prometheus metrics. Read [README.md](README.md)
+first, then [docs/architecture.md](docs/architecture.md), [docs/decisions.md](docs/decisions.md)
+(why things are the way they are) and [ROADMAP.md](ROADMAP.md) (what is next, known issues).
 
 ## Commands
 
@@ -93,5 +93,5 @@ The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`
 ## Before you open a PR
 
 `make test`, `cd web && npm run build`, and for deploy changes `helm lint` + `kubeconform`. CI also
-runs govulncheck, `npm audit`, gitleaks, Trivy and actionlint. Update `docs/` and the README
-configuration table when behavior or variables change, and `CHANGELOG.md`.
+runs govulncheck, `npm audit`, gitleaks, Trivy and actionlint. Update `docs/` (variables:
+`docs/configuration.md`, with `values.yaml`) when behavior or variables change, and `CHANGELOG.md`.

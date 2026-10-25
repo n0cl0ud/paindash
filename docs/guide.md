@@ -4,7 +4,8 @@ paindash lists the vulnerabilities of the container images that **actually run**
 Kubernetes clusters, per environment, in real time, and helps you get them fixed. This guide covers
 what it shows, how to read it, and how to work with it day to day.
 
-- To install it, see [deploy/README.md](../deploy/README.md). To try it on a laptop:
+- To install it, see [Deploying paindash](../deploy/README.md), and
+  [Configuration](configuration.md) for every setting. To try it on a laptop:
   `docker compose --profile demo up --build`, then http://localhost:8080.
 - To understand the internals, see [How paindash works](architecture.md).
 

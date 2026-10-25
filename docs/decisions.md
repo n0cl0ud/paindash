@@ -3,6 +3,11 @@
 Why paindash is built the way it is. Each entry: the decision, why, and what it implies. Read this
 before changing one of them; add an entry when you make a new structural choice.
 
+**Contents:** [Inventory and scanning](#inventory-and-scanning) ·
+[Data and serving](#data-and-serving) · [Prioritization](#prioritization) ·
+[Exceptions and security](#exceptions-and-security) · [Fix prompts](#fix-prompts) ·
+[Packaging](#packaging)
+
 ## Inventory and scanning
 
 ### 1. Inventory from kube-state-metrics through PromQL

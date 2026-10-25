@@ -7,40 +7,58 @@ results in PostgreSQL. It never calls the Kubernetes API: no RBAC, no ServiceAcc
 - [`helm/paindash`](helm/paindash): the Helm chart.
 - [`kubernetes/paindash.yaml`](kubernetes/paindash.yaml): the same defaults as plain manifests.
 
+> [!TIP]
+> **At a glance**, you need: kube-state-metrics 2.6.0 or later scraped with `honor_labels: true`,
+> a Prometheus-compatible API holding its series, PostgreSQL 14 or later, pull credentials for your
+> private registries, and one [authentication](#authentication) mode.
+
+**Contents:** [Prerequisites](#prerequisites) · [Install with Helm](#install-with-helm) ·
+[Install with kubectl](#install-with-kubectl) · [Authentication](#authentication) ·
+[Exposure classification](#exposure-classification) · [Upgrades](#upgrades)
+
 ## Prerequisites
 
-**Kubernetes.** One pod: 250m CPU and 512Mi requested, up to 4Gi of memory; a 10Gi
-ReadWriteOnce volume for the grype DB (~3 GB); up to 10Gi of node ephemeral storage, where syft
-unpacks image layers.
+### Cluster resources
 
-**kube-state-metrics and a Prometheus-compatible query API.** Every cluster to inventory runs
-kube-state-metrics, and its series are queryable through one `/api/v1/query` endpoint (Prometheus,
-Thanos Query, Mimir, VictoriaMetrics...). paindash reads `kube_pod_container_info`,
-`kube_pod_init_container_info`, `kube_pod_owner`, `kube_replicaset_owner`, `kube_job_owner`, and
-for exposure `kube_service_status_load_balancer_ingress`, `kube_ingress_info`, `kube_ingress_path`,
-the optional `kube_traefik_*` series below, and `kube_endpointslice_endpoints` or
-`kube_endpoint_address` with `kube_pod_info` to find the pods behind each Service.
+One pod: 250m CPU and 512Mi requested, up to 4Gi of memory; a 10Gi ReadWriteOnce volume for the
+grype DB (about 3 GB); a 10Gi scratch volume where syft unpacks image layers, on node ephemeral
+storage (2Gi requested, 12Gi limit).
+
+### kube-state-metrics and a Prometheus-compatible API
+
+Every cluster to inventory runs kube-state-metrics, and its series are queryable through one
+`/api/v1/query` endpoint (Prometheus, Thanos Query, Mimir, VictoriaMetrics...). paindash reads:
+
+| For | Series |
+|---|---|
+| Inventory | `kube_pod_container_info`, `kube_pod_init_container_info`, `kube_pod_owner`, `kube_replicaset_owner`, `kube_job_owner` |
+| Exposure | `kube_service_status_load_balancer_ingress`, `kube_ingress_info`, `kube_ingress_path`, the optional [`kube_traefik_*`](#exposure-data) series |
+| From Services to pods | `kube_endpointslice_endpoints`, or `kube_endpoint_address` with `kube_pod_info` |
 
 - **Several clusters:** the series must carry an env label and a cluster label (default `env` and
-  `cluster`, set with `prometheus.envLabel` / `prometheus.clusterLabel`). They are usually external
-  labels set per cluster and kept by Thanos, Mimir, or a Grafana Agent / Alloy remote write. Only
-  series whose env is in `envs` are read.
+  `cluster`, set with `prometheus.envLabel` and `prometheus.clusterLabel`). They are usually
+  external labels set per cluster and kept by Thanos, Mimir, or a Grafana Agent or Alloy remote
+  write. Only series whose env is in `envs` are read.
 - **One Prometheus without such labels:** set `prometheus.defaultEnv` (and optionally
-  `prometheus.defaultCluster`): series without the env label get that env, and the env filter
-  is off.
+  `prometheus.defaultCluster`): series without the env label get that env, and the env filter is
+  off.
 
-kube-state-metrics v2.6.0 or later, scraped with `honor_labels: true` so that its series keep their
-own `namespace`, `pod` and `container` labels. kube-prometheus-stack and kube-prometheus set it; the
-standalone `kube-state-metrics` chart does not (`prometheus.monitor.http.honorLabels: true`).
-Without it, Prometheus renames them `exported_*`, and paindash attributes containers to the
-kube-state-metrics pod and loses the exposure. Check:
-`kube_pod_container_info{exported_namespace!=""}` must return nothing.
+> [!IMPORTANT]
+> kube-state-metrics must be scraped with `honor_labels: true`, so that its series keep their own
+> `namespace`, `pod` and `container` labels. kube-prometheus-stack and kube-prometheus set it; the
+> standalone `kube-state-metrics` chart does not (`prometheus.monitor.http.honorLabels: true`).
+> Without it, Prometheus renames them `exported_*`, and paindash attributes containers to the
+> kube-state-metrics pod and loses the exposure. To check,
+> `kube_pod_container_info{exported_namespace!=""}` must return nothing.
 
-Google Cloud Managed Service for Prometheus is not supported yet: its kube-state-metrics example
-keeps only part of these series, and its documentation says that it renames a scraped `namespace`
-label `exported_namespace`.
+> [!NOTE]
+> Google Cloud Managed Service for Prometheus is not supported yet: its kube-state-metrics example
+> keeps only part of these series, and its documentation says that it renames a scraped
+> `namespace` label `exported_namespace`.
 
-**Authentication to the Prometheus API**, when it asks for one:
+### Authentication to the Prometheus API
+
+When the API asks for one:
 
 - **Basic auth:** credentials in the URL (`https://user:password@host`). Pass such a URL from a
   Secret rather than `prometheus.url`, which would show it in the pod spec:
@@ -52,8 +70,8 @@ label `exported_namespace`.
       secretKeyRef: {name: paindash-prometheus, key: url}
   ```
 
-- **Bearer token:** `prometheus.bearerTokenFile`, a file read at each sync, so that a rotated token
-  (a projected ServiceAccount token) is picked up.
+- **Bearer token:** `prometheus.bearerTokenFile`, a file read at each sync, so that a rotated
+  token (a projected ServiceAccount token) is picked up.
 - **Private CA:** `prometheus.caFile`, PEM certificates trusted for this API only, on top of the
   system ones.
 - **Headers:** `prometheus.headers`, e.g. `X-Scope-OrgID: tenant-1` for a multi-tenant Mimir.
@@ -85,11 +103,15 @@ extraVolumeMounts:
 - {name: prometheus-auth, mountPath: /var/run/secrets/paindash, readOnly: true}
 ```
 
-**OpenShift.** The `restricted-v2` SCC assigns the user and the fsGroup from the namespace's ranges
-and rejects the chart's fixed 10001: set `podSecurityContext.runAsUser`, `runAsGroup` and `fsGroup`
-to `null`. paindash runs under any UID.
+### OpenShift
 
-**PostgreSQL 14+.** Not bundled. paindash creates and migrates its own schema in a database it
+The `restricted-v2` SCC assigns the user and the fsGroup from the namespace's ranges and rejects the
+chart's fixed 10001: set `podSecurityContext.runAsUser`, `runAsGroup` and `fsGroup` to `null`.
+paindash runs under any UID.
+
+### PostgreSQL
+
+PostgreSQL 14 or later, not bundled. paindash creates and migrates its own schema in a database it
 owns:
 
 ```sql
@@ -100,9 +122,11 @@ CREATE DATABASE paindash OWNER paindash;
 
 The pool holds up to `database.maxConns` connections (default 4).
 
-**Registry credentials for private images.** syft pulls every running image by digest. Public
-images need nothing. For private ones, create a `kubernetes.io/dockerconfigjson` Secret with
-read-only credentials in the paindash namespace and set `registry.pullSecret`:
+### Registry credentials
+
+syft pulls every running image by digest. Public images need nothing. For private ones, create a
+`kubernetes.io/dockerconfigjson` Secret with read-only credentials in the paindash namespace and
+set `registry.pullSecret`:
 
 ```sh
 kubectl -n paindash create secret docker-registry regcred \
@@ -114,11 +138,17 @@ allowed to pull (`ecr:GetAuthorizationToken`, `ecr:BatchGetImage`,
 `ecr:GetDownloadUrlForLayer`), e.g. IRSA through
 `serviceAccount.annotations.eks\.amazonaws\.com/role-arn`.
 
-**Exposure data.** Ingresses and LoadBalancer Services need nothing beyond the default
-kube-state-metrics series: EndpointSlices (a default resource since v2.18.0) or Endpoints (the
-default before) lead from each Service to its pods. Traefik IngressRoutes need its custom resource
-state config. With the `prometheus-community/kube-state-metrics` chart (under
-`kube-state-metrics:` in kube-prometheus-stack):
+### Exposure data
+
+Ingresses and LoadBalancer Services need nothing beyond the default kube-state-metrics series:
+EndpointSlices (a default resource since v2.18.0) or Endpoints (the default before) lead from each
+Service to its pods. Traefik IngressRoutes need a custom resource state config.
+
+<details>
+<summary><b>Traefik IngressRoutes:</b> the kube-state-metrics configuration</summary>
+
+With the `prometheus-community/kube-state-metrics` chart (under `kube-state-metrics:` in
+kube-prometheus-stack):
 
 ```yaml
 rbac:
@@ -209,18 +239,33 @@ customResourceState:
 
 A standalone kube-state-metrics takes the same `spec` in the file given to
 `--custom-resource-state-config-file` (with `kind: CustomResourceStateMetrics`); its ClusterRole
-needs the rule above plus list/watch on `customresourcedefinitions` (`apiextensions.k8s.io`). Only
-the first Service of each route is exported; a missing `service_kind` means `Service`. Traefik
-before v2.10 uses the `traefik.containo.us` group.
+needs the rule above plus list and watch on `customresourcedefinitions` (`apiextensions.k8s.io`).
+Only the first Service of each route is exported; a missing `service_kind` means `Service`.
+Traefik before v2.10 uses the `traefik.containo.us` group.
 
-**Network egress**, if restricted: the Prometheus API, PostgreSQL, the registries of the scanned
+</details>
+
+### Network egress
+
+If egress is restricted, allow: the Prometheus API, PostgreSQL, the registries of the scanned
 images (and their blob storage), the grype DB (`grype.anchore.io`, or `scanner.grypeDbUrl`), the
 Pomerium JWKS or the OpenID Connect provider, and, unless `enrichment.enabled=false`,
 `www.cisa.gov` (KEV) and `api.first.org` (EPSS).
 
 ## Install with Helm
 
-From a clone of the repository:
+**Check first** what paindash will see, with a one-off pod that prints the inventory read from
+your Prometheus:
+
+```sh
+kubectl run paindash-snapshot --rm -i --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
+  --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
+```
+
+Add `--env=PAINDASH_ENVS=prod,staging,dev` when your environments are not prod, test and dev, and
+`--env=PAINDASH_DEFAULT_ENV=prod` when the series carry no `env` label (a single Prometheus).
+
+Then, from a clone of the repository:
 
 ```sh
 kubectl create namespace paindash
@@ -228,7 +273,7 @@ kubectl -n paindash create secret generic paindash-db --from-literal=url="$DATAB
 helm install paindash deploy/helm/paindash -n paindash -f values.yaml
 ```
 
-Example `values.yaml`, several clusters behind Thanos:
+Example `values.yaml`, several clusters behind Thanos, users signed in by Pomerium:
 
 ```yaml
 prometheus:
@@ -263,14 +308,17 @@ prometheus:
 envs: [prod]
 ```
 
-Every value is documented in [`values.yaml`](helm/paindash/values.yaml); empty values leave the
-binary's defaults. Rendering fails without a database (`database.url`, `database.existingSecret`,
-or `PG*` variables through `extraEnv`/`envFrom`), without `prometheus.url`, or with an incomplete
-`auth` (the default mode, `pomerium`, needs `auth.pomerium.jwksUrl` and `auth.pomerium.audience`).
+Every value is documented in [`values.yaml`](helm/paindash/values.yaml), and every variable in
+[Configuration](../docs/configuration.md); empty values leave the binary's defaults. Rendering
+fails, with a message saying what is missing, without a database (`database.url`,
+`database.existingSecret`, or `PG*` variables through `extraEnv` or `envFrom`), without
+`prometheus.url`, or with an incomplete `auth` (the default mode, `pomerium`, needs
+`auth.pomerium.jwksUrl` and `auth.pomerium.audience`).
 
-**Demo.** `demo.enabled=true` simulates clusters and a scanner with fake CVEs (`CVE-2099-*`); it
-needs no Prometheus but still needs PostgreSQL. It does not change authentication: set
-`auth.mode=disabled` too to try it through `kubectl port-forward`.
+> [!NOTE]
+> **Demo on a cluster.** `demo.enabled=true` simulates clusters and a scanner with fake CVEs
+> (`CVE-2099-*`); it needs no Prometheus but still needs PostgreSQL. It does not change
+> authentication: set `auth.mode=disabled` too to try it through `kubectl port-forward`.
 
 ## Install with kubectl
 
@@ -284,18 +332,26 @@ kubectl -n paindash create secret generic paindash-db --from-literal=url="$DATAB
 ```
 
 The pod starts once the `paindash-db` Secret exists. Other settings are `PAINDASH_*` environment
-variables, listed in the project README.
+variables: see [Configuration](../docs/configuration.md).
 
 ## Authentication
 
-Four modes (`auth.mode`): Pomerium, OpenID Connect, local accounts, or disabled. In every mode,
-groups decide who gets in (`auth.allowedGroups`, empty: any authenticated user) and who may record
-and revoke exceptions (`auth.editorGroups`, empty: everyone allowed in; the others read
-everything, marked "Read-only").
+| Mode | Who signs users in | Needs | For |
+|---|---|---|---|
+| [`pomerium`](#pomerium) (default) | Pomerium, in front of paindash | the Pomerium JWKS and the route host | teams already behind Pomerium |
+| [`oidc`](#openid-connect) | your identity provider: Keycloak, Entra ID, Okta, Google, Authentik, Dex... | a client, `auth.publicUrl` | most teams |
+| [`local`](#local-accounts) | paindash, against a file of bcrypt hashes | a Secret, `auth.publicUrl` | a few users without an identity provider |
+| [`disabled`](#behind-another-authenticating-proxy) | nobody: anyone who reaches the port | a proxy that is the only way in | local tests, or another proxy |
 
-**Pomerium.** Pomerium enforces the access policy; paindash verifies the signed
-`X-Pomerium-Jwt-Assertion` header on every request, so a request that bypasses Pomerium
-(port-forward, another pod) is rejected. Exceptions are recorded under the user's email.
+In every mode, groups decide who gets in (`auth.allowedGroups`, empty: any authenticated user) and
+who may record and revoke exceptions (`auth.editorGroups`, empty: everyone allowed in). The others
+read everything, marked "Read-only".
+
+### Pomerium
+
+Pomerium enforces the access policy; paindash verifies the signed `X-Pomerium-Jwt-Assertion`
+header on every request, so a request that bypasses Pomerium (port-forward, another pod) is
+rejected. Exceptions are recorded under the user's email.
 
 Pomerium route:
 
@@ -322,10 +378,11 @@ auth:
   allowedGroups: []                  # optional app-side check on the "groups" claim
 ```
 
-**OpenID Connect (`oidc`).** paindash signs users in with your identity provider (Keycloak, Dex,
-Entra ID, Okta, Google, Authentik...), authorization code flow with PKCE, then keeps them in a
-session of its own. Register a client with the redirect URI `<publicUrl>/auth/callback`, and give
-its secret in a Secret (none for a public client):
+### OpenID Connect
+
+paindash signs users in with your identity provider, authorization code flow with PKCE, then keeps
+them in a session of its own. Register a client with the redirect URI `<publicUrl>/auth/callback`,
+and give its secret in a Secret (none for a public client):
 
 ```sh
 kubectl -n paindash create secret generic paindash-oidc \
@@ -351,12 +408,14 @@ else `sub`; groups are read at sign-in. The provider is discovered at the first 
 paindash starts while it is unreachable. Signing out of paindash does not sign out of the provider:
 signing in again can be immediate.
 
-**Local accounts (`local`).** For a few users without an identity provider: a Secret holding one
-account per line, `name:bcrypt-hash[:group,...]` (the format of `htpasswd -nBC 12`). Hash each
-password (12 characters at least) with the image:
+### Local accounts
+
+For a few users without an identity provider: a Secret holding one account per line,
+`name:bcrypt-hash[:group,...]` (the format of `htpasswd -nBC 12`). Hash each password (12
+characters at least) with the image:
 
 ```sh
-docker run --rm -it ghcr.io/n0cl0ud/paindash:<version> hash-password
+docker run --rm -it ghcr.io/n0cl0ud/paindash:0.1.0 hash-password
 cat > users <<'EOF'
 alice@example.com:$2a$12$...:sec
 bob@example.com:$2a$12$...
@@ -376,29 +435,45 @@ auth:
 paindash reads the file again when the Secret changes: an account added, removed or given a new
 password applies within a couple of minutes, without a restart, and the last two sign that account
 out. A file with a malformed line is ignored: the previous accounts stay and a warning is logged
-(at startup, paindash refuses to start instead), so check the logs after each change. To lock an
-account and keep its line, put `*` in front of its hash: it is signed out, and its sign-ins fail as
-with a wrong password until the `*` is removed. A `*` alone in place of the hash means no password:
-it is reserved for passkey-only accounts (see the roadmap) and locks the account until then.
-Putting a line back as it was revives its sessions that have not expired; a new password ends them
-for good. Sign-in is rate-limited: after 5 wrong passwords in 15 minutes an account is refused
-until the first one is 15 minutes old, and 30 failures within a minute, across accounts, refuse
-every sign-in for that minute.
+(at startup, paindash refuses to start instead), so check the logs after each change.
 
-**Sessions** of `oidc` and `local` are an encrypted cookie, HttpOnly and SameSite=Lax (Secure, with
+- **Lock an account** and keep its line: put `*` in front of its hash. It is signed out, and its
+  sign-ins fail as with a wrong password until the `*` is removed.
+- **A `*` alone**, in place of the hash, means no password: it is reserved for passkey-only
+  accounts (see the [roadmap](../ROADMAP.md)) and locks the account until then.
+- Putting a line back as it was revives its sessions that have not expired; a new password ends
+  them for good.
+- **Rate limits:** after 5 wrong passwords in 15 minutes an account is refused until the first one
+  is 15 minutes old, and 30 failures within a minute, across accounts, refuse every sign-in for
+  that minute.
+
+### Sessions
+
+Sessions of `oidc` and `local` are an encrypted cookie, HttpOnly and SameSite=Lax (Secure, with
 the `__Host-` prefix, over HTTPS), valid `auth.sessionTtl` (12 h by default). paindash creates its
 key in its database (table `secrets`; deleting the row signs everyone out at the next restart).
 Nothing is stored server-side: signing out deletes the cookie, a copy of it stays valid until it
 expires. `auth.publicUrl` must be the URL browsers use: the sign-in form only accepts posts from
-that origin. Use https: over plain http, passwords and cookies travel unencrypted, and paindash
-warns at startup unless the host is `localhost` (a local test).
+that origin.
 
-**Other authenticating proxies.** Set `auth.mode=disabled` and put paindash behind the proxy
-(oauth2-proxy, an Ingress with external authentication...). Then **anyone who reaches port 8080
-can read everything and record exceptions, attributed to "anonymous"**: only the proxy may reach
-it. Restrict it with a NetworkPolicy, and never expose the Service directly.
+> [!IMPORTANT]
+> Use https. Over plain http, passwords and cookies travel unencrypted, and paindash warns at
+> startup unless the host is a loopback one (`localhost`, `*.localhost` or a loopback IP, for a
+> local test).
 
-Port 9090 (`/metrics`, `/healthz`, `/readyz`) is never authenticated: keep it off every route.
+### Behind another authenticating proxy
+
+Set `auth.mode=disabled` and put paindash behind the proxy (oauth2-proxy, an Ingress with external
+authentication...).
+
+> [!WARNING]
+> Then **anyone who reaches port 8080 can read everything and record exceptions**, attributed to
+> "anonymous": only the proxy may reach it. Restrict it with a NetworkPolicy, and never expose the
+> Service directly.
+
+> [!CAUTION]
+> Port 9090 (`/metrics`, `/healthz`, `/readyz`) is never authenticated, in any mode: keep it off
+> every route.
 
 ## Exposure classification
 
@@ -437,8 +512,10 @@ Known limits:
 helm upgrade paindash deploy/helm/paindash -n paindash -f values.yaml
 ```
 
-- The schema is migrated at startup, each migration in a transaction. There are no down
-  migrations: back up the database before upgrading, and restore it to roll back across a
-  schema change.
-- One replica, `Recreate` strategy: the old pod stops before the new one starts, so the UI is
-  unavailable for a few seconds. The grype DB on the PersistentVolumeClaim is kept.
+> [!WARNING]
+> The schema is migrated at startup, each migration in a transaction, and there are no down
+> migrations: back up the database before upgrading, and restore it to roll back across a schema
+> change.
+
+One replica, `Recreate` strategy: the old pod stops before the new one starts, so the UI is
+unavailable for a few seconds. The grype DB on the PersistentVolumeClaim is kept.

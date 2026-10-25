@@ -1,23 +1,48 @@
+<div align="center">
+
+<img src="web/public/favicon.svg" alt="" width="76" height="76">
+
 # paindash
 
-The CVEs of what **actually runs** on your Kubernetes clusters, per environment, in real time.
+**The CVEs of what actually runs on your Kubernetes clusters.**<br>
+Per environment, in real time, sorted by what to fix first.
 
-paindash reads the image digests your kubelets pulled (from kube-state-metrics, through
-Prometheus), scans each image once with [syft](https://github.com/anchore/syft) and
-[grype](https://github.com/anchore/grype), and rematches every stored SBOM whenever the
-vulnerability database changes. New CVEs show up without a redeploy or a rescan.
+[![Build](https://github.com/n0cl0ud/paindash/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/n0cl0ud/paindash/actions/workflows/docker.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Helm chart](https://img.shields.io/badge/Helm-chart-0F1689?logo=helm&logoColor=white)](deploy/README.md)
+![Image for amd64 and arm64](https://img.shields.io/badge/image-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white)
 
-![Workloads in prod](docs/screenshots/workloads.png)
+[**Try it**](#try-it-in-one-command) · [**Features**](#what-you-get) · [**Install**](#install) ·
+[**Docs**](docs/README.md) · [**Roadmap**](ROADMAP.md)
 
-> **Prerequisites.** kube-state-metrics, and a Prometheus-compatible query API holding its series
-> (Prometheus, Thanos, Mimir, Grafana Cloud...). Several clusters or environments are told apart
-> by labels on the series. PostgreSQL 14+. Pull credentials for your private registries.
-> paindash needs no access to the Kubernetes API.
+</div>
 
-## Try it
+<br>
 
-The demo simulates four clusters, a scanner and a vulnerability database (`CVE-2099-*`):
-releases land in dev, get promoted to test then prod, and new CVEs come out every two minutes.
+![To fix in prod: the actively exploited vulnerability first, already fixed in dev and test, with the history of the environment and the live feed](docs/screenshots/todo.png)
+
+paindash reads the image digests your kubelets actually pulled, from the kube-state-metrics series
+you already collect. It scans each image once with [syft](https://github.com/anchore/syft) and
+[grype](https://github.com/anchore/grype), keeps the SBOM, and rematches it whenever the
+vulnerability database changes. A new CVE shows up within the hour, with no rescan and no
+redeploy.
+
+## Why paindash
+
+- **What runs, nothing else.** The digest each kubelet pulled, not the tag or what git says. An
+  image promoted from test to prod is scanned once.
+- **New CVEs without a rescan.** SBOMs are stored and rematched when the vulnerability database
+  changes (checked hourly). A deployment shows up in about 30 seconds.
+- **What to fix first.** Actively exploited (CISA KEV) first, then severity, exposure and EPSS,
+  with the fixed version of the release line you run and "already fixed in test, promote" hints.
+- **Nothing to install in your clusters.** No agent, no operator, no CRD, no access to the
+  Kubernetes API: paindash reads the metrics you already have.
+
+## Try it in one command
+
+The demo simulates four clusters, a scanner and a vulnerability database (`CVE-2099-*`): releases
+land in dev, get promoted to test then prod, and new CVEs come out every two minutes.
 
 ```sh
 docker compose --profile demo up --build
@@ -25,137 +50,173 @@ docker compose --profile demo up --build
 
 Then open http://localhost:8080.
 
-## What it does
+## What you get
 
-- **What runs, nothing else.** The digest the kubelet pulled, not the tag or what git says. An image
-  promoted from test to prod is analyzed once.
-- **Real time.** A deployment shows up in the live feed within about 30 s. A CVE published upstream
-  shows up within the hour (the grype database is checked hourly and every SBOM rematched).
-- **Actionable.**
-  - Sorted by urgency: actively exploited (CISA KEV) first, then severity, exposure and EPSS.
-  - The fixed version of the release line you run, not the first one of the advisory.
-  - "Already fixed in test → promote" hints along your promotion chain (dev → test → prod).
-  - Exposure: internet-facing, internal or not exposed, from Ingresses, LoadBalancer Services and
-    Traefik IngressRoutes.
-  - Scopes by namespace, component and exposure, kept in the URL.
-- **Exceptions as OpenVEX.** "Not affected" statements with a justification, a scope and a
-  mandatory expiry; exported as an OpenVEX document for auditors.
-- **History.** Per environment: actively exploited, critical with a fix, high with a fix on
-  internet-facing workloads, and excepted, with what moved them (deployments, new CVEs, exceptions).
-- **Fix prompts** *(experimental)*. On a workload or a vulnerability, a Markdown prompt for Claude
-  Code or any coding agent: fix the vulnerabilities and open the pull requests, one per repo. Your
-  own images are fixed in their source repo (from the `org.opencontainers.image.source` and
-  `.revision` labels), third-party ones bumped in your manifests, or pinned to the image already
-  fixed in an earlier environment.
-- **Prometheus metrics** on `/metrics`, per environment and workload, for alerting.
+**Know what to fix first**
 
-| | |
-|---|---|
-| ![A vulnerability](docs/screenshots/finding.png) | ![Fix prompt](docs/screenshots/fix-prompt.png) |
+- Findings sorted by urgency: actively exploited (CISA KEV), severity, exposure, EPSS.
+- The fixed version of the release line you run, not the first one of the advisory.
+- "Already fixed in test, promote" hints along your promotion chain (dev → test → prod).
+- The exposure of each workload (internet-facing, internal or not exposed), from Ingresses,
+  LoadBalancer Services and Traefik IngressRoutes.
+
+**Stay on top of it**
+
+- A live feed of deployments, new CVEs and additions to the KEV catalog.
+- History per environment (actively exploited, critical with a fix, high with a fix on
+  internet-facing workloads, excepted), with what moved each curve.
+- Prometheus metrics per environment and workload, for your alerts.
+- Scopes by namespace, component and exposure, kept in the URL: every view is a link to share.
+
+**Get it fixed**
+
+- **Fix prompts** *(experimental)*: per workload or vulnerability, a Markdown prompt for Claude
+  Code or any coding agent, to fix and open the pull requests, one per repository. Your own images
+  are fixed in their source repository (from their OCI `source` and `revision` labels),
+  third-party ones bumped in your manifests, or pinned to the image already fixed in an earlier
+  environment.
+- **Exceptions as OpenVEX**: "not affected" statements with a justification, a scope and a
+  mandatory expiry, exported as an OpenVEX document for auditors.
+
+**Fit your setup**
+
+- Sign in through Pomerium, your OpenID Connect provider or local accounts; read-only users.
+- Several clusters and environments in one instance, told apart by series labels.
+- A Helm chart and plain manifests; amd64 and arm64 images with SLSA provenance and an SBOM.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/workloads.png" alt="The workloads of prod, with their vulnerabilities, exposure and KEV count"></td>
+    <td width="50%"><img src="docs/screenshots/workload.png" alt="A workload: its image and source commit, and its vulnerabilities, already fixed in dev and test"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Every workload, by severity, exposure and KEV</sub></td>
+    <td align="center"><sub>A workload, its source commit and what to promote</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/finding.png" alt="A vulnerability: the fix already deployed in dev and test, CVSS, EPSS and the affected package"></td>
+    <td width="50%"><img src="docs/screenshots/fix-prompt.png" alt="A fix prompt for a coding agent, with the data of the workload"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>A vulnerability, and where it is already fixed</sub></td>
+    <td align="center"><sub>A fix prompt, ready for your coding agent</sub></td>
+  </tr>
+</table>
 
 ### Why not Trivy Operator or Kubescape?
 
 They scan from inside each cluster and report per resource. paindash is a single view across
-clusters and environments built on the metrics you already collect: no agent or operator in the
-clusters, a promotion view ("fixed in test, not in prod yet"), continuous rematching of stored SBOMs
-instead of rescans, history, expiring exceptions and prompts to get the fixes done.
+clusters and environments, built on the metrics you already collect: no agent or operator in the
+clusters, a promotion view ("fixed in test, not in prod yet"), continuous rematching of stored
+SBOMs instead of rescans, history, expiring exceptions, and prompts to get the fixes done.
 
 ## How it works
 
 ![How paindash works: kube-state-metrics through Prometheus, inventory, syft, grype, enrichment, read model, outputs](docs/architecture.svg)
 
-More in [docs/architecture.md](docs/architecture.md); how to use it in [docs/guide.md](docs/guide.md).
+1. **Inventory.** Every 30 seconds, paindash reads the running containers and their image digests
+   from kube-state-metrics, through your Prometheus, and attributes them to workloads and
+   environments.
+2. **Scan once.** Each new digest gets an SBOM from syft, stored in PostgreSQL.
+3. **Match again and again.** grype matches the SBOMs of running images, and matches them all
+   again when its vulnerability database changes.
+4. **Rank.** CISA KEV, FIRST EPSS and the exposure of each workload sort the findings by urgency.
+5. **Serve.** A web UI, a live feed, Prometheus metrics and an OpenVEX export.
+
+The details, from data model to security model: [How paindash works](docs/architecture.md).
 
 ## Install
 
-With Helm or plain manifests: see [deploy/README.md](deploy/README.md). Check what paindash will
-see before installing:
+> [!IMPORTANT]
+> **Prerequisites:** kube-state-metrics 2.6.0 or later, scraped with `honor_labels: true`
+> (kube-prometheus-stack does both); a Prometheus-compatible API holding its series (Prometheus,
+> Thanos, Mimir, VictoriaMetrics...); PostgreSQL 14 or later. paindash needs no access to the
+> Kubernetes API. Details: [Prerequisites](deploy/README.md#prerequisites).
+
+**1. See what paindash will see.** A one-off pod prints the inventory it reads from your
+Prometheus:
 
 ```sh
-make snapshot PROMETHEUS_URL=http://localhost:9090
+kubectl run paindash-snapshot --rm -i --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.0 \
+  --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
 ```
 
-## Configuration
+Add `--env=PAINDASH_ENVS=prod,staging,dev` when your environments are not prod, test and dev, and
+`--env=PAINDASH_DEFAULT_ENV=prod` when the series carry no `env` label (a single Prometheus).
 
-Environment variables (the Helm chart maps its values to them).
+**2. Write your values**, here with your OpenID Connect provider:
 
-| Variable | Default | |
-|---|---|---|
-| `PAINDASH_DATABASE_URL`, or `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE` | — | PostgreSQL 14+ |
-| `PAINDASH_PROMETHEUS_URL` | — | Prometheus-compatible API with the kube-state-metrics series; basic auth as `https://user:password@host` |
-| `PAINDASH_PROMETHEUS_BEARER_TOKEN_FILE` | — | file holding a bearer token for that API, read at each sync |
-| `PAINDASH_PROMETHEUS_CA_FILE` | — | PEM certificates trusted for that API, on top of the system ones |
-| `PAINDASH_PROMETHEUS_HEADERS` | — | `Name=value` headers sent to that API, comma-separated (e.g. `X-Scope-OrgID=tenant-1`) |
-| `PAINDASH_ENV_LABEL`, `PAINDASH_CLUSTER_LABEL` | `env`, `cluster` | series labels telling environments and clusters apart |
-| `PAINDASH_DEFAULT_ENV`, `PAINDASH_DEFAULT_CLUSTER` | —, `default` | for series without those labels (a single Prometheus) |
-| `PAINDASH_ENVS` | `prod,test,dev` | environment switcher order; the first one is scanned first |
-| `PAINDASH_PROMOTION` | `dev,test,prod` | promotion chain: an image is only suggested from an earlier environment |
-| `PAINDASH_PUBLIC_ENTRYPOINTS` | `web,websecure` | Traefik entrypoints reachable from the internet (`*-internal`, `*-int`: internal) |
-| `PAINDASH_INGRESS_CLASSES` | — | `class=internet` or `class=internal`, comma-separated; unlisted classes are internal when named `*internal*` or `*private*` |
-| `PAINDASH_AUTH` | `pomerium` | `pomerium`, `oidc`, `local`, or `disabled` (see [Security](#security)) |
-| `PAINDASH_POMERIUM_JWKS_URL`, `PAINDASH_POMERIUM_AUDIENCE`, `PAINDASH_POMERIUM_ISSUER` | — | verification of `X-Pomerium-Jwt-Assertion` |
-| `PAINDASH_PUBLIC_URL` | — | `oidc` and `local`: the URL browsers use (redirect URI, cookies, origin of the sign-in form); https, plain http only on localhost |
-| `PAINDASH_OIDC_ISSUER`, `PAINDASH_OIDC_CLIENT_ID`, `PAINDASH_OIDC_CLIENT_SECRET` | — | `oidc`: the provider and the client (no secret for a public client) |
-| `PAINDASH_OIDC_SCOPES`, `PAINDASH_OIDC_GROUPS_CLAIM` | `openid,email,profile`, `groups` | `oidc`: scopes requested; ID token claim holding the groups (`realm_access.roles` reaches into an object) |
-| `PAINDASH_USERS_FILE` | — | `local`: the accounts, `name:bcrypt-hash[:group,…]` lines (`paindash hash-password`), read again when the file changes; `*` in front of a hash locks the account |
-| `PAINDASH_SESSION_TTL` | `12h` | `oidc` and `local`: session lifetime |
-| `PAINDASH_ALLOWED_GROUPS` | — | groups allowed in; empty allows any authenticated user |
-| `PAINDASH_EDITOR_GROUPS` | — | groups that may record and revoke exceptions, the others read; empty: everyone allowed in |
-| `PAINDASH_PULL_SECRET`, `PAINDASH_ECR_REGISTRIES` | — | registry credentials: a `.dockerconfigjson` path, ECR registries for the credential helper |
-| `PAINDASH_GRYPE_DB_URL` | grype's | vulnerability database listing, e.g. a mirror for air-gapped clusters |
-| `PAINDASH_REMATCH_INTERVAL` | `1h` | vulnerability database check (failed scans are retried every 6 h) |
-| `PAINDASH_SCAN_CONCURRENCY` | `2` | images scanned in parallel |
-| `PAINDASH_RETENTION` | `720h` | how long images that stopped running and old events are kept |
-| `PAINDASH_ENRICH` | `on` | `off` disables KEV and EPSS (no egress to CISA and FIRST) |
-| `PAINDASH_GITHUB_OWNERS` | — | fix prompts: GitHub owners whose images you build (`ghcr.io/<owner>/…`, also behind a pull-through cache) |
-| `PAINDASH_GITOPS_REPO` | — | fix prompts: `owner/name` of the repo holding your manifests |
-| `PAINDASH_DB_MAX_CONNS` | `4` | |
-| `PAINDASH_SYNC_INTERVAL` | `30s` | inventory refresh |
-| `PAINDASH_KEV_INTERVAL` | `1h` | CISA KEV refresh (EPSS is refreshed daily) |
-| `PAINDASH_PROGRESS_INTERVAL` | `1m` | progress events while the first scan of a fresh install runs |
-| `PAINDASH_LOG_LEVEL` | — | `debug` for verbose logs |
-| `PAINDASH_SYFT`, `PAINDASH_GRYPE` | `syft`, `grype` | scanner binaries (from `PATH` by default) |
-| `PAINDASH_LISTEN`, `PAINDASH_INTERNAL_LISTEN` | `:8080`, `:9090` | UI and API; `/metrics`, `/healthz`, `/readyz` |
-| `PAINDASH_DEMO` | `false` | simulated clusters and scanner |
+```yaml
+prometheus:
+  url: http://prometheus-operated.monitoring.svc:9090
+envs: [prod, test, dev]                # your environments, in switcher order
+database:
+  existingSecret: paindash-db          # key "url": postgres://paindash:...@db:5432/paindash
+auth:
+  mode: oidc                           # or pomerium, local, disabled
+  publicUrl: https://paindash.example.com
+  oidc:
+    issuer: https://sso.example.com/realms/main
+    clientId: paindash                 # redirect URI: <publicUrl>/auth/callback
+    existingSecret: paindash-oidc      # key "client-secret"
+  editorGroups: [security]             # may record exceptions; the others read
+```
+
+**3. Install the chart**, from a clone of this repository:
+
+```sh
+kubectl create namespace paindash
+kubectl -n paindash create secret generic paindash-db \
+  --from-literal=url="$DATABASE_URL"
+kubectl -n paindash create secret generic paindash-oidc \
+  --from-literal=client-secret="$CLIENT_SECRET"
+helm install paindash deploy/helm/paindash -n paindash -f values.yaml
+```
+
+Route your public URL to the `paindash` Service, port 8080 (`ingress.enabled` creates an
+Ingress). Port 9090 serves `/metrics` without authentication: keep it internal.
+
+Local accounts, Pomerium, private registries, plain manifests and upgrades:
+[Deploying paindash](deploy/README.md). Every variable and its Helm value:
+[Configuration](docs/configuration.md).
 
 ## Security
 
 paindash reads cluster metadata through Prometheus and pulls images with the credentials you give
-it; it never writes to a cluster or a registry. Its database holds the inventory and the
-vulnerabilities of everything you run: treat it, and the UI, as sensitive.
-
-Users sign in through [Pomerium](https://www.pomerium.com), whose signed assertion paindash
-verifies (`PAINDASH_AUTH=pomerium`), with your OpenID Connect provider (`oidc`), or with local
-accounts from a file of bcrypt hashes (`local`). Groups decide who gets in
-(`PAINDASH_ALLOWED_GROUPS`) and who may record exceptions (`PAINDASH_EDITOR_GROUPS`, the others
-are read-only). `PAINDASH_AUTH=disabled` serves anyone who reaches the port and records exceptions
-as "anonymous": only for local use or behind an authenticating proxy you trust; the UI then shows a
-"No auth" badge.
+it; it never writes to a cluster or a registry. Its database and its UI list everything you run
+and its vulnerabilities: treat both as sensitive. Groups decide who gets in and who may record
+exceptions; everyone else is read-only.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
-## Development
+## Documentation
+
+| Document | For |
+|---|---|
+| [**User guide**](docs/guide.md) | Concepts, a tour of the UI, fix prompts, workflows, metrics, API, FAQ |
+| [**Deploying paindash**](deploy/README.md) | Prerequisites, Helm and kubectl, authentication, exposure, upgrades |
+| [**Configuration**](docs/configuration.md) | Every `PAINDASH_*` variable, its default and its Helm value |
+| [**How paindash works**](docs/architecture.md) | Inventory, scanning, data model, live feed, history, security model, limits |
+| [**Design decisions**](docs/decisions.md) | Why paindash is built the way it is, and what each choice implies |
+| [**Roadmap**](ROADMAP.md) · [**Changelog**](CHANGELOG.md) | What is next and the known limits; what changed |
+
+## Contributing
 
 ```sh
-make demo      # database in docker compose, then the server in demo mode → http://localhost:8080
-make test
-paindash scan <repo@sha256:…>   # syft + grype on one image, to debug registry access
+make demo                # demo mode on http://localhost:8080, database in docker compose
+make test                # go vet + go test
+cd web && npm run dev    # UI with hot reload
 ```
 
-The UI is React + TypeScript + Tailwind (`web/`), embedded in the Go binary. syft and grype are
-built from source, pinned to releases at least two weeks old (see [tools/README.md](tools/README.md)).
-CI: every action and image pinned by digest; `go vet`, `go test -race`, govulncheck, `npm audit`,
-gitleaks, Trivy, actionlint; the image is scanned before it is pushed, with SLSA provenance and an
-SBOM. See [CONTRIBUTING.md](CONTRIBUTING.md); coding agents and new maintainers start with
-[CLAUDE.md](CLAUDE.md).
+The UI is React, TypeScript and Tailwind, embedded in the Go binary. syft and grype are built from
+source, pinned to releases at least two weeks old. CI pins every action and image by digest and
+runs `go vet`, `go test -race`, govulncheck, `npm audit`, gitleaks, Trivy and actionlint; images
+are scanned before they are pushed. See [CONTRIBUTING.md](CONTRIBUTING.md); coding agents and new
+maintainers start with [CLAUDE.md](CLAUDE.md).
 
-## Roadmap
-
-A Kubernetes API inventory source, Gateway API routes in the exposure and signed images come
-next: see [ROADMAP.md](ROADMAP.md), and [docs/decisions.md](docs/decisions.md)
-for why the current scope is what it is. Changes: [CHANGELOG.md](CHANGELOG.md).
-
-paindash is maintained on a best-effort basis.
+Next on the [roadmap](ROADMAP.md): a Kubernetes API inventory source, Gateway API routes in the
+exposure, passkeys for local accounts, and signed images. paindash is maintained on a best-effort
+basis.
 
 ## License
 

@@ -6,7 +6,15 @@ paindash is one Go binary (the React UI is embedded in it) running as a single p
 PostgreSQL as its only state. Background loops turn what runs into an inventory, scan each new image
 digest once, rematch stored SBOMs when the vulnerability database changes, and push what changed to
 the browsers. This page describes each part. For what the UI shows, see the [user guide](guide.md);
-to install, see [deploy/README.md](../deploy/README.md).
+to install, see [Deploying paindash](../deploy/README.md).
+
+**Contents:** [Overview](#overview) · [Inventory](#inventory-and-workload-attribution) ·
+[Exposure](#exposure-derivation) · [Scanning](#scanning) ·
+[A new image](#sequence-a-new-image-is-deployed) ·
+[A database update](#sequence-the-vulnerability-database-updates) ·
+[Enrichment](#enrichment-cisa-kev-and-first-epss) · [Data model](#data-model) ·
+[Read model](#read-model-and-caching) · [Live feed](#live-feed) · [History](#history) ·
+[Security model](#security-model) · [Limits](#limits) · [Debugging](#debugging-commands)
 
 ## Overview
 

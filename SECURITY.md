@@ -30,6 +30,8 @@ The latest release.
   rate-limited sign-in), with encrypted session cookies for the last two; editor groups limit who
   records exceptions. `PAINDASH_AUTH=disabled` is for local use or a trusted authenticating proxy
   only.
+- **Internal port.** `/metrics`, `/healthz` and `/readyz` are served on port 9090 without
+  authentication: never route it.
 - **Supply chain.** syft and grype are built from pinned sources; every base image and CI action is
   pinned by digest; images are scanned before they are pushed and carry SLSA provenance and an
   SBOM.
