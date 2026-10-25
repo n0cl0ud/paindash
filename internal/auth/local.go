@@ -38,9 +38,10 @@ type account struct {
 	groups []string
 }
 
-// locked: a * in front of the hash, or in place of it, refuses password
-// sign-in, as in /etc/shadow. The line, its groups and the hash are kept, to
-// unlock by removing the *; passkey-only accounts will use it too (ROADMAP).
+// locked: a * in front of the hash locks the account, keeping its line, groups
+// and hash (remove the * to unlock), as ! does in /etc/shadow. A * alone means
+// no password: it is reserved for passkey-only accounts (ROADMAP), and locks
+// until then. Passkey sign-in will have to refuse the first form only.
 func (a account) locked() bool { return len(a.hash) > 0 && a.hash[0] == '*' }
 
 // localLogin checks passwords against the accounts file: one account per line,
@@ -199,7 +200,7 @@ func parseAccounts(b []byte) (map[string]account, error) {
 		}
 		acc := account{name: parts[0], hash: []byte(parts[1])}
 		if _, err := bcrypt.Cost(acc.hash); err != nil && !acc.locked() {
-			return nil, fmt.Errorf("line %d: not a bcrypt hash (paindash hash-password, or htpasswd -nB)", n)
+			return nil, fmt.Errorf("line %d: not a bcrypt hash (paindash hash-password, or htpasswd -nBC 12)", n)
 		}
 		if len(parts) == 3 {
 			for _, g := range strings.Split(parts[2], ",") {
@@ -217,8 +218,8 @@ func parseAccounts(b []byte) (map[string]account, error) {
 	return out, sc.Err()
 }
 
-// fingerprint ties a session to the password hash it was opened with: a new
-// password signs the account out everywhere.
+// fingerprint ties a session to the hash field it was opened with: a new
+// password, or a * in front of it, signs the account out everywhere.
 func fingerprint(hash []byte) string {
 	sum := sha256.Sum256(hash)
 	return hex.EncodeToString(sum[:8])

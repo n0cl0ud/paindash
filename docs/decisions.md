@@ -120,8 +120,8 @@ provider; a sealed cookie needs no session store and survives restarts of the si
 key lives in the database so that there is nothing to configure. Header-trust modes are a classic
 source of bypasses, so they wait for a deliberate threat model (roadmap).
 **Implies.** A copied session cookie stays valid until it expires (12 h by default): sign-out only
-deletes it from the browser. Local accounts are checked on every request, OpenID Connect groups at
-sign-in.
+deletes it from the browser. Local accounts are checked on every request (removed, locked by a `*`
+or given a new password: signed out), OpenID Connect groups at sign-in.
 
 ### 17. Session expiry reloads the page
 **Decision.** On a 401 or a login redirect, reload once (not more than once a minute, never while

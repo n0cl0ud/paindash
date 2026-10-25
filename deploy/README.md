@@ -351,8 +351,8 @@ paindash starts while it is unreachable. Signing out of paindash does not sign o
 signing in again can be immediate.
 
 **Local accounts (`local`).** For a few users without an identity provider: a Secret holding one
-account per line, `name:bcrypt-hash[:group,...]` (the format of `htpasswd -nB`). Hash each password
-(12 characters at least) with the image:
+account per line, `name:bcrypt-hash[:group,...]` (the format of `htpasswd -nBC 12`). Hash each
+password (12 characters at least) with the image:
 
 ```sh
 docker run --rm -it ghcr.io/n0cl0ud/paindash:<version> hash-password
@@ -374,12 +374,14 @@ auth:
 
 paindash reads the file again when the Secret changes: an account added, removed or given a new
 password applies within a couple of minutes, without a restart, and the last two sign that account
-out. To lock an account and keep its line, put `*` in front of its hash, or in place of it: it is
-signed out, and its sign-ins fail as with a wrong password until the `*` is removed. Putting a
-line back as it was revives its sessions that have not expired; a new password ends them for good.
-Sign-in is rate-limited: after 5 wrong passwords in 15 minutes an account is refused until the
-first one is 15 minutes old, and 30 failures within a minute, across accounts, refuse every
-sign-in for that minute.
+out. A file with a malformed line is ignored: the previous accounts stay and a warning is logged,
+so check the logs after each change. To lock an account and keep its line, put `*` in front of its
+hash: it is signed out, and its sign-ins fail as with a wrong password until the `*` is removed. A
+`*` alone in place of the hash means no password: it is reserved for passkey-only accounts (see
+the roadmap) and locks the account until then. Putting a line back as it was revives its sessions
+that have not expired; a new password ends them for good. Sign-in is rate-limited: after 5 wrong
+passwords in 15 minutes an account is refused until the first one is 15 minutes old, and 30
+failures within a minute, across accounts, refuse every sign-in for that minute.
 
 **Sessions** of `oidc` and `local` are an encrypted cookie, HttpOnly and SameSite=Lax (Secure, with
 the `__Host-` prefix, over HTTPS), valid `auth.sessionTtl` (12 h by default). paindash creates its

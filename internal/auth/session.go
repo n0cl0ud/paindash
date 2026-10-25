@@ -59,7 +59,7 @@ type session struct {
 	Email   string   `json:"e"`
 	Groups  []string `json:"g,omitempty"`
 	Expires int64    `json:"x"`
-	Check   string   `json:"c,omitempty"` // local: fingerprint of the password hash
+	Check   string   `json:"c,omitempty"` // local: fingerprint of the account's hash field
 	// How and when the user signed in, for actions that will want a recent
 	// sign-in, such as enrolling a passkey (ROADMAP).
 	Method   string `json:"m,omitempty"`
