@@ -269,6 +269,26 @@ func TestLocalPolicyAndExpiry(t *testing.T) {
 	}
 }
 
+// Groups of local accounts are read on every request: edit rights follow the
+// file, and an account moved out of the allowed groups is signed out.
+func TestLocalGroupsChange(t *testing.T) {
+	alice := "alice:" + hash(t, "correct horse battery")
+	a, clk, path := localSite(t, alice+":viewers,sec\n", Policy{Allowed: []string{"viewers"}, Editors: []string{"sec"}})
+	b := newBrowser(a.Middleware(echo), site)
+	signIn(b, "alice", "correct horse battery", "/")
+	if u := b.user(t); u == nil || !u.CanEdit {
+		t.Fatalf("alice: %+v", u)
+	}
+	edit(t, path, clk, alice+":viewers\n")
+	if u := b.user(t); u == nil || u.CanEdit {
+		t.Errorf("out of the editor groups: %+v", u)
+	}
+	edit(t, path, clk, alice+":other\n")
+	if u := b.user(t); u != nil {
+		t.Errorf("out of the allowed groups: %+v", u)
+	}
+}
+
 func TestSignOut(t *testing.T) {
 	a, _, _ := localSite(t, "alice:"+hash(t, "correct horse battery")+"\n", Policy{})
 	b := newBrowser(a.Middleware(echo), site)
