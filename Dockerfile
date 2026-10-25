@@ -42,7 +42,9 @@ RUN for t in syft grype; do \
     done
 
 FROM alpine:3.24@sha256:71e9b7bae160ba167fa17414401b94cbcdaf3c32feeab9298bd794a2a0614c35
-RUN apk add --no-cache ca-certificates && adduser -D -u 10001 paindash
+# The CA bundle Go reads (/etc/ssl/certs/ca-certificates.crt) ships with the
+# pinned base image: nothing is fetched at build time.
+RUN adduser -D -u 10001 paindash
 COPY --from=scanners /out/syft /out/grype /usr/local/bin/
 COPY --from=build /out/docker-credential-ecr-login /usr/local/bin/
 COPY --from=build /out/paindash /usr/local/bin/paindash

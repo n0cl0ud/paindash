@@ -4,6 +4,8 @@
 
 - Environment switcher: wraps when the environments do not fit the width (a phone) instead of
   widening the page; only the first nine announce a key, as only keys 1 to 9 switch.
+- Image: every input pinned. The CA bundle is the one of the Alpine base image (no package fetched at
+  build time), and BuildKit is pinned by digest in CI.
 
 ## 0.1.0
 
