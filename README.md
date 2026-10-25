@@ -92,9 +92,15 @@ Environment variables (the Helm chart maps its values to them).
 | `PAINDASH_PROMOTION` | `dev,test,prod` | promotion chain: an image is only suggested from an earlier environment |
 | `PAINDASH_PUBLIC_ENTRYPOINTS` | `web,websecure` | Traefik entrypoints reachable from the internet (`*-internal`, `*-int`: internal) |
 | `PAINDASH_INGRESS_CLASSES` | — | `class=internet` or `class=internal`, comma-separated; unlisted classes are internal when named `*internal*` or `*private*` |
-| `PAINDASH_AUTH` | `pomerium` | `pomerium`, or `disabled` (see [Security](#security)) |
+| `PAINDASH_AUTH` | `pomerium` | `pomerium`, `oidc`, `local`, or `disabled` (see [Security](#security)) |
 | `PAINDASH_POMERIUM_JWKS_URL`, `PAINDASH_POMERIUM_AUDIENCE`, `PAINDASH_POMERIUM_ISSUER` | — | verification of `X-Pomerium-Jwt-Assertion` |
-| `PAINDASH_ALLOWED_GROUPS` | — | groups allowed in, on top of the Pomerium policy |
+| `PAINDASH_PUBLIC_URL` | — | `oidc` and `local`: the URL browsers use (redirect URI, cookies, origin of the sign-in form) |
+| `PAINDASH_OIDC_ISSUER`, `PAINDASH_OIDC_CLIENT_ID`, `PAINDASH_OIDC_CLIENT_SECRET` | — | `oidc`: the provider and the client (no secret for a public client) |
+| `PAINDASH_OIDC_SCOPES`, `PAINDASH_OIDC_GROUPS_CLAIM` | `openid,email,profile`, `groups` | `oidc`: scopes requested; ID token claim holding the groups (`realm_access.roles` reaches into an object) |
+| `PAINDASH_USERS_FILE` | — | `local`: the accounts, `name:bcrypt-hash[:group,…]` lines (`paindash hash-password`), read again when the file changes |
+| `PAINDASH_SESSION_TTL` | `12h` | `oidc` and `local`: session lifetime |
+| `PAINDASH_ALLOWED_GROUPS` | — | groups allowed in; empty allows any authenticated user |
+| `PAINDASH_EDITOR_GROUPS` | — | groups that may record and revoke exceptions, the others read; empty: everyone allowed in |
 | `PAINDASH_PULL_SECRET`, `PAINDASH_ECR_REGISTRIES` | — | registry credentials: a `.dockerconfigjson` path, ECR registries for the credential helper |
 | `PAINDASH_GRYPE_DB_URL` | grype's | vulnerability database listing, e.g. a mirror for air-gapped clusters |
 | `PAINDASH_REMATCH_INTERVAL` | `1h` | vulnerability database check (failed scans are retried every 6 h) |
@@ -118,10 +124,13 @@ paindash reads cluster metadata through Prometheus and pulls images with the cre
 it; it never writes to a cluster or a registry. Its database holds the inventory and the
 vulnerabilities of everything you run: treat it, and the UI, as sensitive.
 
-The UI has no login of its own. Put it behind [Pomerium](https://www.pomerium.com) and let paindash
-verify its signed assertion (`PAINDASH_AUTH=pomerium`). `PAINDASH_AUTH=disabled` serves anyone who
-reaches the port and records exceptions as "anonymous": only for local use or behind an
-authenticating proxy you trust; the UI then shows a "No auth" badge.
+Users sign in through [Pomerium](https://www.pomerium.com), whose signed assertion paindash
+verifies (`PAINDASH_AUTH=pomerium`), with your OpenID Connect provider (`oidc`), or with local
+accounts from a file of bcrypt hashes (`local`). Groups decide who gets in
+(`PAINDASH_ALLOWED_GROUPS`) and who may record exceptions (`PAINDASH_EDITOR_GROUPS`, the others
+are read-only). `PAINDASH_AUTH=disabled` serves anyone who reaches the port and records exceptions
+as "anonymous": only for local use or behind an authenticating proxy you trust; the UI then shows a
+"No auth" badge.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
@@ -142,8 +151,8 @@ SBOM. See [CONTRIBUTING.md](CONTRIBUTING.md); coding agents and new maintainers 
 
 ## Roadmap
 
-A Kubernetes API inventory source, Gateway API routes in the exposure, oauth2-proxy authentication
-and signed images come next: see [ROADMAP.md](ROADMAP.md), and [docs/decisions.md](docs/decisions.md)
+A Kubernetes API inventory source, Gateway API routes in the exposure and signed images come
+next: see [ROADMAP.md](ROADMAP.md), and [docs/decisions.md](docs/decisions.md)
 for why the current scope is what it is. Changes: [CHANGELOG.md](CHANGELOG.md).
 
 paindash is maintained on a best-effort basis.

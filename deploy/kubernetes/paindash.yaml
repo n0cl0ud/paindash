@@ -91,8 +91,9 @@ spec:
         - name: PAINDASH_AUTH
           value: pomerium
         # EDIT: Pomerium JWKS (https://<authenticate host>/.well-known/pomerium/jwks.json)
-        # and the route host as audience. Or PAINDASH_AUTH=disabled, only behind
-        # another authenticating proxy (see README.md).
+        # and the route host as audience. Or PAINDASH_AUTH=oidc or local (see
+        # ../README.md#authentication), or disabled, only behind another
+        # authenticating proxy.
         - name: PAINDASH_POMERIUM_JWKS_URL
           value: POMERIUM_JWKS_URL
         - name: PAINDASH_POMERIUM_AUDIENCE

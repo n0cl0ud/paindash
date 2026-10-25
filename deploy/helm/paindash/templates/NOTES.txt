@@ -15,6 +15,16 @@ exceptions as "anonymous". Only expose it behind an authenticating proxy.
 Local access:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ $fullname }} 8080:8080
 then open http://localhost:8080.
+{{- else if eq .Values.auth.mode "oidc" }}
+
+Users sign in at {{ .Values.auth.publicUrl }} with {{ .Values.auth.oidc.issuer }}. Register the redirect URI
+{{ .Values.auth.publicUrl | trimSuffix "/" }}/auth/callback for the client {{ .Values.auth.oidc.clientId }} at the provider.
+{{- else if eq .Values.auth.mode "local" }}
+
+Users sign in at {{ .Values.auth.publicUrl }} with the accounts of the Secret {{ .Values.auth.local.existingSecret }}
+(name:bcrypt-hash[:group,...] lines). Hash a password with:
+  kubectl -n {{ .Release.Namespace }} exec -it deploy/{{ $fullname }} -- paindash hash-password
+An updated Secret applies within a couple of minutes, without a restart.
 {{- else }}
 
 Access goes through Pomerium: route https://<host> to http://{{ $fullname }}.{{ .Release.Namespace }}.svc:8080

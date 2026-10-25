@@ -215,8 +215,8 @@ before v2.10 uses the `traefik.containo.us` group.
 
 **Network egress**, if restricted: the Prometheus API, PostgreSQL, the registries of the scanned
 images (and their blob storage), the grype DB (`grype.anchore.io`, or `scanner.grypeDbUrl`), the
-Pomerium JWKS, and, unless `enrichment.enabled=false`, `www.cisa.gov` (KEV) and `api.first.org`
-(EPSS).
+Pomerium JWKS or the OpenID Connect provider, and, unless `enrichment.enabled=false`,
+`www.cisa.gov` (KEV) and `api.first.org` (EPSS).
 
 ## Install with Helm
 
@@ -287,7 +287,12 @@ variables, listed in the project README.
 
 ## Authentication
 
-**Pomerium (recommended).** Pomerium enforces the access policy; paindash verifies the signed
+Four modes (`auth.mode`): Pomerium, OpenID Connect, local accounts, or disabled. In every mode,
+groups decide who gets in (`auth.allowedGroups`, empty: any authenticated user) and who may record
+and revoke exceptions (`auth.editorGroups`, empty: everyone allowed in; the others read
+everything, marked "Read-only").
+
+**Pomerium.** Pomerium enforces the access policy; paindash verifies the signed
 `X-Pomerium-Jwt-Assertion` header on every request, so a request that bypasses Pomerium
 (port-forward, another pod) is rejected. Exceptions are recorded under the user's email.
 
@@ -315,6 +320,70 @@ auth:
     issuer: ""                       # optional: empty skips the issuer check
   allowedGroups: []                  # optional app-side check on the "groups" claim
 ```
+
+**OpenID Connect (`oidc`).** paindash signs users in with your identity provider (Keycloak, Dex,
+Entra ID, Okta, Google, Authentik...), authorization code flow with PKCE, then keeps them in a
+session of its own. Register a client with the redirect URI `<publicUrl>/auth/callback`, and give
+its secret in a Secret (none for a public client):
+
+```sh
+kubectl -n paindash create secret generic paindash-oidc \
+  --from-literal=client-secret="$CLIENT_SECRET"
+```
+
+```yaml
+auth:
+  mode: oidc
+  publicUrl: https://paindash.example.com
+  oidc:
+    issuer: https://keycloak.example.com/realms/main
+    clientId: paindash
+    existingSecret: paindash-oidc
+    scopes: [openid, email, profile]   # add groups where the provider needs it (Dex)
+    groupsClaim: groups                # a dotted path reaches into objects: realm_access.roles
+  allowedGroups: [paindash]
+  editorGroups: [paindash-admin]
+```
+
+A user is named by the `email` claim (unless `email_verified` is false), else `preferred_username`,
+else `sub`; groups are read at sign-in. The provider is discovered at the first sign-in, so
+paindash starts while it is unreachable. Signing out of paindash does not sign out of the provider:
+signing in again can be immediate.
+
+**Local accounts (`local`).** For a few users without an identity provider: a Secret holding one
+account per line, `name:bcrypt-hash[:group,...]` (the format of `htpasswd -nB`). Hash each password
+(12 characters at least) with the image:
+
+```sh
+docker run --rm -it ghcr.io/n0cl0ud/paindash:<version> hash-password
+cat > users <<'EOF'
+alice@example.com:$2a$12$...:sec
+bob@example.com:$2a$12$...
+EOF
+kubectl -n paindash create secret generic paindash-users --from-file=users
+```
+
+```yaml
+auth:
+  mode: local
+  publicUrl: https://paindash.example.com
+  local:
+    existingSecret: paindash-users
+  editorGroups: [sec]                # Alice records exceptions, Bob reads
+```
+
+paindash reads the file again when the Secret changes: an account added, removed or given a new
+password applies within a couple of minutes, without a restart, and the last two sign that account
+out. Sign-in is rate-limited: after 5 wrong passwords in 15 minutes an account is refused until
+the first one is 15 minutes old, and 30 failures within a minute, across accounts, refuse every
+sign-in for that minute.
+
+**Sessions** of `oidc` and `local` are an encrypted cookie, HttpOnly and SameSite=Lax (Secure, with
+the `__Host-` prefix, over HTTPS), valid `auth.sessionTtl` (12 h by default). paindash creates its
+key in its database (table `secrets`; deleting the row signs everyone out at the next restart).
+Nothing is stored server-side: signing out deletes the cookie, a copy of it stays valid until it
+expires. `auth.publicUrl` must be the URL browsers use: the sign-in form only accepts posts from
+that origin.
 
 **Other authenticating proxies.** Set `auth.mode=disabled` and put paindash behind the proxy
 (oauth2-proxy, an Ingress with external authentication...). Then **anyone who reaches port 8080

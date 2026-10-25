@@ -34,7 +34,7 @@ flowchart LR
     REG["Container registries"]
     VDB["grype vulnerability DB<br/>checked hourly"]
     FEEDS["CISA KEV catalog<br/>FIRST EPSS API"]
-    UI["Browser<br/>through Pomerium"]
+    UI["Browser<br/>signed in"]
     SCRAPER["Your Prometheus"]
 
     PROM -->|"instant queries"| SYNC
@@ -78,7 +78,7 @@ flowchart LR
 | `internal/view` | Read models: scope, findings, summary, workloads, promotion hints, image origin |
 | `internal/api` | HTTP API, SSE stream, Prometheus metrics, history recording, exceptions and OpenVEX |
 | `internal/live` | Fan-out of events and invalidations to connected browsers |
-| `internal/auth` | Pomerium assertion verification |
+| `internal/auth` | Who is calling: Pomerium assertions, or paindash's own sessions (OpenID Connect, local accounts) |
 | `internal/demo` | Simulated clusters, scanner and history for the demo |
 | `web` | React + TypeScript UI, embedded in the binary |
 
@@ -596,17 +596,31 @@ From [SECURITY.md](../SECURITY.md), and how the code enforces it:
 - **Writes** go to its own database only. Fix prompts are text; paindash runs nothing.
 - **Sensitive data.** The database and the UI list everything you run and its vulnerabilities:
   restrict access to both.
-- **Authentication** is delegated to Pomerium. paindash verifies the signed
-  `X-Pomerium-Jwt-Assertion` on every request (ES256 or RS256, against the JWKS, the audience and
-  optionally the issuer), so a request bypassing Pomerium is rejected; `PAINDASH_ALLOWED_GROUPS`
-  adds a check on the `groups` claim. `PAINDASH_AUTH=disabled` serves anyone reaching the port and
-  records exceptions as `anonymous`: only for local use or behind a trusted authenticating proxy.
+- **Authentication**, by `PAINDASH_AUTH`:
+  - `pomerium`: paindash verifies the signed `X-Pomerium-Jwt-Assertion` on every request (ES256 or
+    RS256, against the JWKS, the audience and optionally the issuer), so a request bypassing
+    Pomerium is rejected.
+  - `oidc`: authorization code flow with PKCE; state, nonce and verifier travel in a sealed cookie
+    for 10 minutes; the ID token is verified (signature, issuer, audience, expiry, nonce).
+  - `local`: bcrypt hashes from `PAINDASH_USERS_FILE`, read again when it changes; an unknown
+    account takes as long as a wrong password; at most 4 hashes compared at once; 5 failures in 15
+    minutes block an account, 30 a minute across accounts block every sign-in.
+  - Sessions of `oidc` and `local`: an AES-256-GCM sealed cookie (name, the groups the policy uses,
+    expiry), HttpOnly, SameSite=Lax, Secure and `__Host-` over HTTPS, with a key from the `secrets`
+    table. Not stored server-side: sign-out deletes the cookie, a copy stays valid until it expires.
+    Local accounts are checked on every request (a removed account or a new password ends its
+    sessions). The sign-in form and sign-out accept posts from `PAINDASH_PUBLIC_URL` only
+    (`Origin`, `Sec-Fetch-Site`), and redirects after sign-in stay on the site.
+  - `PAINDASH_ALLOWED_GROUPS` decides who gets in, `PAINDASH_EDITOR_GROUPS` who may record and
+    revoke exceptions (403 for the others).
+  - `PAINDASH_AUTH=disabled` serves anyone reaching the port and records exceptions as `anonymous`:
+    only for local use or behind a trusted authenticating proxy.
 - **Internal port.** `/metrics`, `/healthz` and `/readyz` are served on a separate port
   (`PAINDASH_INTERNAL_LISTEN`, `:9090`) without authentication: never route it.
 - **Browser hardening.** A strict Content-Security-Policy (`default-src 'self'`,
   `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`.
   Writes require `Content-Type: application/json` and refuse cross-site requests (`Sec-Fetch-Site`),
-  and need an identity when authentication is on.
+  and need an identity in an editor group when authentication is on.
 - **Prompt injection.** Scanner-extracted strings are sanitized and fenced as data in fix prompts;
   advisory texts are left out.
 - **Supply chain.** syft and grype are built from pinned sources; base images and CI actions are
@@ -631,7 +645,9 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
   only attributed through EndpointSlices; exposure stops at the Service a route targets. Internal
   AWS Network Load Balancers count as internet-facing, private load balancers behind a NAT as
   internal, and an Ingress with only a `defaultBackend` exposes nothing.
-- **Authentication.** Pomerium, or none behind another authenticating proxy.
+- **Authentication.** Pomerium, OpenID Connect or local accounts, or none behind another
+  authenticating proxy. paindash's sessions cannot be revoked server-side: a copied cookie works
+  until it expires.
 - **Fix prompts.** GitHub repositories only.
 - **Rematch scope.** Images that stopped running are not rematched until they run again.
 

@@ -146,7 +146,7 @@ export function FindingDrawer({
   gone: boolean;
   onClose: () => void;
 }) {
-  const { href } = useEnv();
+  const { href, canEdit } = useEnv();
   const aliases = f.aliases.filter((a) => a !== f.vulnId);
   const [form, setForm] = useState(false);
   // The exception just recorded from here (the list refresh may drop the finding).
@@ -225,6 +225,8 @@ export function FindingDrawer({
         </p>
       ) : f.exception ? (
         <ExceptionInfo e={f.exception} onClose={onClose} />
+      ) : !canEdit ? (
+        <p className="text-sm text-muted">Read-only access: exceptions are recorded by editors.</p>
       ) : form ? (
         <ExceptionForm f={f} onDone={setCreated} onCancel={() => setForm(false)} />
       ) : (

@@ -1,15 +1,18 @@
 // Command paindash serves the CVE dashboard and runs its pipeline.
 //
-//	paindash            run the server (configuration from PAINDASH_* env vars)
-//	paindash snapshot   print the running containers seen through Prometheus
-//	paindash scan REF   scan one image (repo@sha256:...) and print its findings
+//	paindash                 run the server (configuration from PAINDASH_* env vars)
+//	paindash snapshot        print the running containers seen through Prometheus
+//	paindash scan REF        scan one image (repo@sha256:...) and print its findings
+//	paindash hash-password   print the bcrypt hash of a password, for PAINDASH_USERS_FILE
 package main
 
 import (
+	"bufio"
 	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -22,6 +25,8 @@ import (
 	"syscall"
 	"text/tabwriter"
 	"time"
+
+	"golang.org/x/term"
 
 	"github.com/n0cl0ud/paindash/internal/api"
 	"github.com/n0cl0ud/paindash/internal/auth"
@@ -52,6 +57,8 @@ func main() {
 		err = snapshot(ctx)
 	case len(os.Args) > 2 && os.Args[1] == "scan":
 		err = scanOne(ctx, os.Args[2])
+	case len(os.Args) > 1 && os.Args[1] == "hash-password":
+		err = hashPassword()
 	default:
 		err = run(ctx, log)
 	}
@@ -145,19 +152,45 @@ func run(ctx context.Context, log *slog.Logger) error {
 			srv.UI = ui
 		}
 	}
+	policy := auth.Policy{Allowed: list(os.Getenv("PAINDASH_ALLOWED_GROUPS")), Editors: list(os.Getenv("PAINDASH_EDITOR_GROUPS"))}
 	switch mode := env("PAINDASH_AUTH", "pomerium"); mode {
 	case "pomerium":
 		jwks, aud := os.Getenv("PAINDASH_POMERIUM_JWKS_URL"), os.Getenv("PAINDASH_POMERIUM_AUDIENCE")
 		if jwks == "" || aud == "" {
 			return errors.New("PAINDASH_POMERIUM_JWKS_URL and PAINDASH_POMERIUM_AUDIENCE are required (or PAINDASH_AUTH=disabled for local dev)")
 		}
-		p := auth.NewPomerium(ctx, jwks, aud, os.Getenv("PAINDASH_POMERIUM_ISSUER"), list(os.Getenv("PAINDASH_ALLOWED_GROUPS")), log)
+		p := auth.NewPomerium(ctx, jwks, aud, os.Getenv("PAINDASH_POMERIUM_ISSUER"), policy, log)
 		srv.Auth = p.Middleware
+	case "oidc", "local":
+		key, err := st.Secret(ctx, "session", 32)
+		if err != nil {
+			return fmt.Errorf("session key: %w", err)
+		}
+		sc := auth.SessionConfig{
+			Key: key, PublicURL: os.Getenv("PAINDASH_PUBLIC_URL"),
+			TTL: duration("PAINDASH_SESSION_TTL", 12*time.Hour), Policy: policy, Log: log,
+		}
+		var sessions *auth.Sessions
+		if mode == "oidc" {
+			sessions, err = auth.NewOIDC(ctx, auth.OIDCConfig{
+				Issuer:       os.Getenv("PAINDASH_OIDC_ISSUER"),
+				ClientID:     os.Getenv("PAINDASH_OIDC_CLIENT_ID"),
+				ClientSecret: os.Getenv("PAINDASH_OIDC_CLIENT_SECRET"),
+				Scopes:       list(os.Getenv("PAINDASH_OIDC_SCOPES")),
+				GroupsClaim:  os.Getenv("PAINDASH_OIDC_GROUPS_CLAIM"),
+			}, sc)
+		} else {
+			sessions, err = auth.NewLocal(os.Getenv("PAINDASH_USERS_FILE"), sc)
+		}
+		if err != nil {
+			return err
+		}
+		srv.Auth, srv.SignOut = sessions.Middleware, true
 	case "disabled":
 		log.Warn("authentication DISABLED: anyone reaching the port can read everything and record exceptions (as \"anonymous\"); only for local use or behind an authenticating proxy")
 		srv.AuthDisabled = true
 	default:
-		return fmt.Errorf("PAINDASH_AUTH: unknown mode %q", mode)
+		return fmt.Errorf("PAINDASH_AUTH: unknown mode %q (pomerium, oidc, local or disabled)", mode)
 	}
 
 	go hub.Run(ctx)
@@ -304,6 +337,39 @@ func scanOne(ctx context.Context, ref string) error {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", m.Vuln.ID, m.Vuln.Severity, cvss, m.Pkg.Name, m.Pkg.Version, strings.Join(m.FixedIn, ","))
 	}
 	return tw.Flush()
+}
+
+// hashPassword prints the bcrypt hash of a password, for a line of the
+// accounts file: typed twice without echo on a terminal, else the first line
+// of stdin.
+func hashPassword() error {
+	var pw string
+	if fd := int(os.Stdin.Fd()); term.IsTerminal(fd) {
+		fmt.Fprint(os.Stderr, "Password: ")
+		a, err := term.ReadPassword(fd)
+		fmt.Fprint(os.Stderr, "\nAgain: ")
+		b, err2 := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+		if err = cmp.Or(err, err2); err != nil {
+			return err
+		}
+		if string(a) != string(b) {
+			return errors.New("the two passwords differ")
+		}
+		pw = string(a)
+	} else {
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return err
+		}
+		pw = strings.TrimRight(line, "\r\n")
+	}
+	h, err := auth.HashPassword(pw)
+	if err != nil {
+		return err
+	}
+	fmt.Println(h)
+	return nil
 }
 
 func env(key, def string) string {

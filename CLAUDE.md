@@ -17,6 +17,7 @@ cd web && npm run dev        # UI with hot reload, proxied to :8080
 cd web && npm run typecheck
 make snapshot PROMETHEUS_URL=http://localhost:9090   # inventory seen through Prometheus, no DB
 paindash scan <repo@sha256:…>                         # syft + grype on one image
+paindash hash-password                                # bcrypt hash for PAINDASH_USERS_FILE (local accounts)
 docker compose --profile demo up --build              # the demo, fully in containers
 helm lint deploy/helm/paindash --set database.url=postgres://u:p@db/x --set prometheus.url=http://p:9090
 ```
@@ -27,7 +28,7 @@ The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`
 
 | Path | What |
 |---|---|
-| `cmd/paindash` | entry point: configuration from `PAINDASH_*` env vars, wiring, `snapshot` and `scan` subcommands |
+| `cmd/paindash` | entry point: configuration from `PAINDASH_*` env vars, wiring, `snapshot`, `scan` and `hash-password` subcommands |
 | `internal/inventory` | `Source` interface; `Prometheus` reads kube-state-metrics series, attributes pods to workloads, derives exposure |
 | `internal/pipeline` | `Syncer` (inventory every 30 s, events), `Worker` (scan queue, hourly DB check, rematch, retries), `Enricher` (KEV, EPSS) |
 | `internal/scan` | syft/grype CLIs, SBOM pruning and match rules (`RulesVersion`), registry auth, OCI provenance labels |
@@ -35,7 +36,7 @@ The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`
 | `internal/view` | pure read model: findings, summary, workloads, scope, promotion hints, image origin |
 | `internal/api` | HTTP API, SSE stream, exceptions (OpenVEX), history, `/metrics` |
 | `internal/demo` | simulated clusters, scanner and DB (`CVE-2099-*`), history backfill |
-| `internal/auth` | Pomerium JWT assertion verification |
+| `internal/auth` | who is calling: Pomerium JWT assertions, or paindash's own sessions (OpenID Connect, local accounts) and their `/auth/` pages |
 | `web/src` | React 19 + TypeScript + Tailwind 4 + TanStack Query; `api/` (types mirror `internal/model`), `views/`, `components/`, `lib/` |
 | `deploy/` | Helm chart, plain manifests, install guide |
 | `tools/` | Go modules that pin syft and grype, built from source in the Dockerfile |
@@ -83,8 +84,10 @@ The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`
   they come back) but are not rematched meanwhile.
 - **Scans**: a digest is scanned once; failures retry every 6 h; single-arch images are retried on
   the other platform. Changing pruning or matching rules: bump `scan.RulesVersion` (rematches all).
-- **Session expiry** (Pomerium): API calls get 401/redirects; the UI reloads itself once a minute at
-  most, never while the exception form is open (`holdReload`).
+- **Session expiry**: API calls get a 401 (paindash's sessions) or a redirect/HTML page (Pomerium);
+  the UI reloads itself once a minute at most, never while the exception form is open
+  (`holdReload`). A JSON 403 is a read-only user (outside `PAINDASH_EDITOR_GROUPS`), not an ended
+  session.
 - **Single replica**: the scan queue, history writer and RWO grype cache assume one pod (Recreate).
 
 ## Before you open a PR

@@ -8,8 +8,8 @@ What is next, roughly in priority order, and the known issues. Decisions behind 
 - **Kubernetes API inventory source**, for clusters without Prometheus: in-cluster, one cluster per
   instance, env set by configuration (the `inventory.Source` interface is ready).
 - **Gateway API** `HTTPRoute` in the exposure model.
-- **oauth2-proxy header authentication**, after a threat model (trusted proxy only, no spoofable
-  headers).
+- **Signed assertions of other identity-aware proxies** (Cloudflare Access, Google IAP), checked
+  like Pomerium's. Trusting plain identity headers (oauth2-proxy) only after a threat model.
 - **Signed images** (cosign keyless) on top of the SLSA provenance and SBOM already attached.
 - **Alerting**: ship example PrometheusRules for the `/metrics` series (new KEV on an
   internet-facing workload, stale vulnerability DB, stale inventory).

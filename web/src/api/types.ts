@@ -43,7 +43,7 @@ export interface EnvInfo {
 // GET /api/meta
 export interface Meta {
   envs: EnvInfo[];
-  user: { email: string; groups: string[] } | null;
+  user: { email: string; groups: string[]; canEdit: boolean } | null; // canEdit: may record and revoke exceptions
   vulnDb: { builtAt: string | null; checkedAt: string | null };
   inventory: { source: "prometheus" | "demo"; lastSyncAt: string | null };
   exposureAvailable: boolean; // false when no Ingress, IngressRoute or LoadBalancer metrics are found
@@ -51,6 +51,7 @@ export interface Meta {
   gitopsRepo: string; // GitHub "owner/name" of the cluster manifests (fix prompt), "" if not set
   promotion: string[]; // envs in the order fixes are promoted, e.g. ["dev", "test", "prod"]
   authDisabled: boolean; // anyone reaching the port is served
+  signOut: boolean; // paindash holds the session (oidc, local): POST /auth/logout signs out
 }
 
 // Scope params, on summary, findings, workloads and images:

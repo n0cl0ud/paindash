@@ -170,14 +170,21 @@ func (s *Server) writeAllowed(w http.ResponseWriter, r *http.Request) bool {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "cross-site or non-JSON write refused"})
 		return false
 	}
-	if s.Auth != nil && auth.UserFrom(r.Context()) == nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "no identity"})
-		return false
+	if s.Auth != nil {
+		u := auth.UserFrom(r.Context())
+		if u == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "no identity"})
+			return false
+		}
+		if !u.CanEdit {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "read-only: exceptions are recorded by the editor groups"})
+			return false
+		}
 	}
 	return true
 }
 
-// author is who did it, from the Pomerium identity.
+// author is who did it, from the authenticated identity.
 func (s *Server) author(r *http.Request) string {
 	if u := auth.UserFrom(r.Context()); u != nil && u.Email != "" {
 		return u.Email

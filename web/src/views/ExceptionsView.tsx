@@ -43,6 +43,7 @@ function StateBadge({ e, now }: { e: Exception; now: number }) {
 
 /** "Revoke", then an explicit confirm step (Escape or Cancel backs out). */
 function Revoke({ e }: { e: Exception }) {
+  const { canEdit } = useEnv();
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const revokeRef = useRef<HTMLButtonElement>(null);
@@ -58,7 +59,7 @@ function Revoke({ e }: { e: Exception }) {
     backOut.current = false;
   }, [confirming]);
 
-  if (e.state === "expired" || e.state === "revoked") return null;
+  if (e.state === "expired" || e.state === "revoked" || !canEdit) return null;
   if (!confirming) {
     return (
       <button

@@ -109,11 +109,19 @@ days); exported as an OpenVEX document.
 **Implies.** They match the package name in any version and in every env; their events (and history
 markers) go only to the envs where they cover a container.
 
-### 16. Authentication delegated to Pomerium
-**Decision.** No login in the app: verify Pomerium's signed assertion (JWKS); `disabled` mode for
-local use, made visible ("No auth" badge, exceptions by "anonymous").
-**Why.** Identity-aware proxies do authentication better; header-trust modes are a classic source of
-bypasses, so they wait for a deliberate threat model (roadmap).
+### 16. Authentication: Pomerium, OpenID Connect or local accounts
+**Decision.** Verify Pomerium's signed assertion (JWKS); or sign in with an OpenID Connect provider
+(authorization code with PKCE) or against a file of bcrypt hashes, then keep the user in an
+encrypted cookie (AES-256-GCM, key in the `secrets` table), stored nowhere else; or `disabled` for
+local use, made visible ("No auth" badge, exceptions by "anonymous"). Groups decide who gets in and
+who may record exceptions (the others are read-only).
+**Why.** Users asked for SSO without running a proxy, and for a few accounts without an identity
+provider; a sealed cookie needs no session store and survives restarts of the single replica. The
+key lives in the database so that there is nothing to configure. Header-trust modes are a classic
+source of bypasses, so they wait for a deliberate threat model (roadmap).
+**Implies.** A copied session cookie stays valid until it expires (12 h by default): sign-out only
+deletes it from the browser. Local accounts are checked on every request, OpenID Connect groups at
+sign-in.
 
 ### 17. Session expiry reloads the page
 **Decision.** On a 401 or a login redirect, reload once (not more than once a minute, never while

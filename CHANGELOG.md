@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Sign-in without a proxy: OpenID Connect (`PAINDASH_AUTH=oidc`, authorization code with PKCE) or
+  local accounts from a file of bcrypt hashes (`PAINDASH_AUTH=local`, `paindash hash-password`),
+  kept in an encrypted session cookie; a "Sign out" button.
+- Read-only users: `PAINDASH_EDITOR_GROUPS` limits who records and revokes exceptions, in every
+  authentication mode.
+
 ## 0.1.0
 
 First public release.

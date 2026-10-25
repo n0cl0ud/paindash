@@ -22,9 +22,10 @@ import {
 } from "./types";
 
 // --- Session expiry -----------------------------------------------------------
-// Pomerium answers an expired session (14 h after login) with a redirect or an
-// HTML page instead of JSON. Any such answer flips this flag. A page load is
-// all it takes to renew it (Pomerium goes through the identity provider's silent login),
+// An ended session comes back as a 401 (paindash's own sessions, oidc and
+// local), or as a redirect or an HTML page instead of JSON (Pomerium, 14 h
+// after login). Any such answer flips this flag. A page load is all it takes
+// to renew it (a silent login at the identity provider, or the sign-in form),
 // so the page reloads by itself, at most once a minute (a broken login must
 // not loop) and never while a form is open; else the UI shows a reload banner.
 
@@ -93,17 +94,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     // A redirect means the auth proxy wants a new login: do not follow it.
     redirect: "manual",
   });
-  if (res.type === "opaqueredirect" || res.status === 401 || res.status === 403) {
+  // A JSON 403 is paindash itself refusing (a read-only user): an error, not
+  // an ended session like a 401 or the HTML 403 of an auth proxy.
+  const json = (res.headers.get("content-type") ?? "").includes("json");
+  if (res.type === "opaqueredirect" || res.status === 401 || (res.status === 403 && !json)) {
     markSessionExpired();
     throw new SessionExpiredError();
   }
   if (!res.ok) {
-    const body = (res.headers.get("content-type") ?? "").includes("json")
-      ? ((await res.json().catch(() => null)) as { error?: string } | null)
-      : null;
+    const body = json ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     throw new ApiError(res.status, `${res.status} ${res.statusText}`.trim(), body?.error ?? "");
   }
-  if (!(res.headers.get("content-type") ?? "").includes("json")) {
+  if (!json) {
     markSessionExpired();
     throw new SessionExpiredError();
   }

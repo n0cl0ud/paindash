@@ -26,8 +26,10 @@ The latest release.
   repository. Fix prompts are text for you to paste into a coding agent; paindash runs nothing.
 - **Sensitive data.** The database and the UI list everything you run and its vulnerabilities:
   restrict access to both.
-- **Authentication.** Delegated to Pomerium, whose signed assertion paindash verifies.
-  `PAINDASH_AUTH=disabled` is for local use or a trusted authenticating proxy only.
+- **Authentication.** Pomerium's signed assertion, OpenID Connect, or local accounts (bcrypt hashes,
+  rate-limited sign-in), with encrypted session cookies for the last two; editor groups limit who
+  records exceptions. `PAINDASH_AUTH=disabled` is for local use or a trusted authenticating proxy
+  only.
 - **Supply chain.** syft and grype are built from pinned sources; every base image and CI action is
   pinned by digest; images are scanned before they are pushed and carry SLSA provenance and an
   SBOM.

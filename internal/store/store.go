@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -860,6 +861,21 @@ func (s *Store) State(ctx context.Context, key string) (string, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
+	return v, err
+}
+
+// Secret returns the secret called name, created from fresh random bytes on
+// first use: the same value across restarts, without configuration.
+func (s *Store) Secret(ctx context.Context, name string, size int) ([]byte, error) {
+	fresh := make([]byte, size)
+	if _, err := rand.Read(fresh); err != nil {
+		return nil, err
+	}
+	if _, err := s.pool.Exec(ctx, `INSERT INTO secrets (name, value) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`, name, fresh); err != nil {
+		return nil, err
+	}
+	var v []byte
+	err := s.pool.QueryRow(ctx, `SELECT value FROM secrets WHERE name = $1`, name).Scan(&v)
 	return v, err
 }
 

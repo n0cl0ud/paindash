@@ -211,6 +211,8 @@ type EnvInfo struct {
 type User struct {
 	Email  string   `json:"email"`
 	Groups []string `json:"groups"`
+	// CanEdit: may record and revoke exceptions (PAINDASH_EDITOR_GROUPS).
+	CanEdit bool `json:"canEdit"`
 }
 
 type Meta struct {
@@ -230,6 +232,9 @@ type Meta struct {
 	// Envs in the order fixes are promoted (e.g. dev, test, prod).
 	Promotion    []string `json:"promotion"`
 	AuthDisabled bool     `json:"authDisabled"`
+	// SignOut: paindash holds the session (oidc, local) and signs out with
+	// POST /auth/logout.
+	SignOut bool `json:"signOut"`
 }
 
 type ImageCounts struct {

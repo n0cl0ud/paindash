@@ -182,6 +182,22 @@ export function TopBar({
               {meta.user.email}
             </span>
           )}
+          {meta.user && !meta.user.canEdit && (
+            <span
+              className="rounded border border-line px-1.5 py-0.5 text-xs text-muted"
+              title="You can read everything, but recording and revoking exceptions is left to editors"
+            >
+              Read-only
+            </span>
+          )}
+          {meta.signOut && (
+            // A plain form: the session cookie is HttpOnly, the server ends it.
+            <form method="post" action="/auth/logout">
+              <button type="submit" className="text-xs font-medium text-ink-2 hover:text-ink">
+                Sign out
+              </button>
+            </form>
+          )}
         </div>
       </div>
       {/* pb-px holds the tabs' -mb-px inside the scroll box (else it scrolls

@@ -88,8 +88,17 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if and .Values.prometheus.url $promEnv }}
 {{- fail "prometheus.url and PAINDASH_PROMETHEUS_URL in extraEnv are both set: keep one" }}
 {{- end }}
-{{- if not (has .Values.auth.mode (list "pomerium" "disabled")) }}
-{{- fail (printf "auth.mode: %q, want \"pomerium\" or \"disabled\"" (toString .Values.auth.mode)) }}
+{{- if not (has .Values.auth.mode (list "pomerium" "oidc" "local" "disabled")) }}
+{{- fail (printf "auth.mode: %q, want \"pomerium\", \"oidc\", \"local\" or \"disabled\"" (toString .Values.auth.mode)) }}
+{{- end }}
+{{- if and (has .Values.auth.mode (list "oidc" "local")) (not .Values.auth.publicUrl) }}
+{{- fail (printf "auth.mode %s needs auth.publicUrl: the URL browsers use, e.g. https://paindash.example.com" .Values.auth.mode) }}
+{{- end }}
+{{- if and (eq .Values.auth.mode "oidc") (not (and .Values.auth.oidc.issuer .Values.auth.oidc.clientId)) }}
+{{- fail "auth.mode oidc needs auth.oidc.issuer and auth.oidc.clientId" }}
+{{- end }}
+{{- if and (eq .Values.auth.mode "local") (not .Values.auth.local.existingSecret) }}
+{{- fail "auth.mode local needs auth.local.existingSecret: a Secret holding the accounts file (paindash hash-password)" }}
 {{- end }}
 {{- range $class, $level := .Values.exposure.ingressClasses }}
 {{- if not (has $level (list "internet" "internal")) }}

@@ -18,6 +18,8 @@ export interface EnvCtx {
   live: LiveStatus;
   /** Meta.exposureAvailable: when false, no exposure badge, scope or KPI is shown. */
   exposureAvailable: boolean;
+  /** Meta.user.canEdit (true without authentication): exceptions can be recorded and revoked. */
+  canEdit: boolean;
 }
 
 export const EnvContext = createContext<EnvCtx | null>(null);

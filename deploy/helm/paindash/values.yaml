@@ -67,8 +67,31 @@ exposure:
   ingressClasses: {}
 
 auth:
-  # "pomerium" (verify the Pomerium JWT) or "disabled" (only behind an authenticating proxy).
+  # "pomerium" (verify the Pomerium JWT), "oidc" (sign in with an OpenID Connect provider), "local"
+  # (accounts of auth.local.existingSecret) or "disabled" (only behind an authenticating proxy).
   mode: pomerium
+  # URL browsers use, e.g. https://paindash.example.com; required by oidc and local (redirect URI, cookies).
+  publicUrl: ""
+  # Session lifetime in oidc and local modes (binary default 12h).
+  sessionTtl: ""
+  oidc:
+    # Issuer URL, e.g. https://keycloak.example.com/realms/main; required in oidc mode.
+    issuer: ""
+    # Client ID registered at the provider, with the redirect URI <publicUrl>/auth/callback; required in oidc mode.
+    clientId: ""
+    # Existing Secret holding the client secret; empty for a public client (PKCE only).
+    existingSecret: ""
+    # Key of the client secret in existingSecret.
+    existingSecretKey: client-secret
+    # Scopes (binary default openid, email, profile); add "groups" where the provider needs it.
+    scopes: []
+    # ID token claim holding the groups (binary default "groups"); a dotted path reaches into objects, e.g. realm_access.roles.
+    groupsClaim: ""
+  local:
+    # Existing Secret holding the accounts file: name:bcrypt-hash[:group,...] lines (paindash hash-password); required in local mode.
+    existingSecret: ""
+    # Key of the accounts file in existingSecret.
+    existingSecretKey: users
   pomerium:
     # Pomerium JWKS, e.g. https://authenticate.example.com/.well-known/pomerium/jwks.json; required in pomerium mode.
     jwksUrl: ""
@@ -76,8 +99,10 @@ auth:
     audience: ""
     # Expected JWT issuer; empty skips the issuer check.
     issuer: ""
-  # Groups allowed in ("groups" claim), on top of the Pomerium policy; empty allows any authenticated user.
+  # Groups allowed in (the groups claim, or the groups of local accounts); empty allows any authenticated user.
   allowedGroups: []
+  # Groups that may record and revoke exceptions; empty: anyone allowed in, others are read-only.
+  editorGroups: []
 
 registry:
   # Existing kubernetes.io/dockerconfigjson Secret used to pull the scanned images.

@@ -126,6 +126,7 @@ function Shell({ meta }: { meta: Meta }) {
   }, [env]);
 
   const live = useLiveStream(env);
+  const canEdit = !meta.user || meta.user.canEdit;
   const ctx = useMemo<EnvCtx>(
     () => ({
       env,
@@ -136,8 +137,9 @@ function Shell({ meta }: { meta: Meta }) {
       viewKey: `${env}|${scopeKey(scope)}`,
       live,
       exposureAvailable,
+      canEdit,
     }),
-    [env, meta.envs, scope, setScope, live, exposureAvailable],
+    [env, meta.envs, scope, setScope, live, exposureAvailable, canEdit],
   );
 
   if (!env) {

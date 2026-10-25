@@ -44,6 +44,9 @@ type Server struct {
 	Promotion []string
 	// AuthDisabled: anyone reaching the port is served, the UI says so.
 	AuthDisabled bool
+	// SignOut: Auth keeps its own session cookie (oidc, local), ended by
+	// POST /auth/logout.
+	SignOut bool
 
 	// HistoryEvery coalesces history points (default 5 min).
 	HistoryEvery time.Duration
@@ -242,6 +245,7 @@ func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
 	m.GitOpsRepo = s.GitOpsRepo
 	m.Promotion = nonNilStrings(s.Promotion)
 	m.AuthDisabled = s.AuthDisabled
+	m.SignOut = s.SignOut
 	writeJSON(w, http.StatusOK, m)
 }
 

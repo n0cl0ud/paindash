@@ -210,7 +210,9 @@ move: deployments, removals, scans, new or withdrawn CVEs, KEV additions, except
 - **Tabs:** To fix (with its count), Workloads, All vulnerabilities, Exceptions.
 - **Badges:** `DEMO` in demo mode; `No auth` when authentication is disabled; "N exceptions
   expiring soon" (links to Exceptions); the live stream status (Live, Connecting, Reconnecting,
-  Offline after 20 s without a connection); the signed-in user.
+  Offline after 20 s without a connection); the signed-in user; `Read-only` for a user outside the
+  editor groups (no "Mark as not affected", no "Revoke"); **Sign out** when paindash holds the
+  session (`oidc`, `local`).
 - **CVE DB badge:** the age of the vulnerability database build in use. It turns into a warning when
   the database was built more than 2 days ago ("is the feed still published?") or has not been
   checked for 3 hours ("is the scanner stuck?"). The tooltip gives the build and check times.
@@ -371,10 +373,11 @@ the workloads running each image. Failed scans are retried automatically (see th
 
 ### Session expiry
 
-When the authenticating proxy's session expires, API calls come back as a redirect, an HTML page,
-401 or 403. The UI then reloads the page by itself so that the proxy can renew the session: at most
-once a minute, and never while the exception form is open. Otherwise it shows a "Session expired,
-reload the page" banner.
+When the session ends (paindash's own after `PAINDASH_SESSION_TTL`, or the authenticating proxy's),
+API calls come back as a 401, a redirect or an HTML page. The UI then reloads the page by itself so
+that the session can be renewed (silently at the identity provider, or through the sign-in form):
+at most once a minute, and never while the exception form is open. Otherwise it shows a "Session
+expired, reload the page" banner. A 403 in JSON is not an ended session: the user is read-only.
 
 ## Fix prompts (experimental)
 
@@ -560,8 +563,9 @@ the Prometheus metrics and the OpenVEX export.
 - `env` selects the environment (default: the first of `PAINDASH_ENVS`).
 - `ns`, `wl` (`namespace/name`) and `exp` (`internet`, `internal`, `none`), comma-separated,
   scope `summary`, `findings`, `workloads` and `images`.
-- Writes need `Content-Type: application/json`; cross-site requests are refused; behind Pomerium,
-  the author is the identity of the request.
+- Writes need `Content-Type: application/json`; cross-site requests are refused; the author is the
+  signed-in user, who must be in an editor group when `PAINDASH_EDITOR_GROUPS` is set (403
+  otherwise).
 
 Recording an exception:
 
