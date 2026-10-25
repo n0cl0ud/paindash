@@ -125,9 +125,11 @@ export function HistoryPanel() {
   const series = SERIES.filter((s) => exposureAvailable || s.key !== "highFixableInternet");
   const points = data?.envs[env] ?? [];
   const recorded = points.length - 1; // the last one is the live value
-  // The end of the promotion chain (prod), where fixes have to land.
-  const compareEnv = useQuery(queries.meta()).data?.promotion.at(-1) ?? "prod";
-  const canCompare = env !== compareEnv && (data?.envs[compareEnv]?.length ?? 0) > 1;
+  // The end of the promotion chain (prod), where fixes have to land, compared
+  // with the earlier envs of the chain only: what they fixed is not promoted yet.
+  const promotion = useQuery(queries.meta()).data?.promotion ?? [];
+  const compareEnv = promotion.at(-1) ?? "prod";
+  const canCompare = promotion.slice(0, -1).includes(env) && (data?.envs[compareEnv]?.length ?? 0) > 1;
   const comparePoints = compare && canCompare ? data?.envs[compareEnv] : undefined;
 
   const toggleOpen = () => {
