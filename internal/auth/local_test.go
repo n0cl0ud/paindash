@@ -33,6 +33,19 @@ func writeAccounts(t *testing.T, content string) string {
 	return p
 }
 
+// edit rewrites the accounts file, with a modification time the next check
+// sees as new.
+func edit(t *testing.T, path string, clk *clock, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clk.t = clk.t.Add(11 * time.Second) // the file is checked every 10 s
+	if err := os.Chtimes(path, clk.t, clk.t); err != nil {
+		t.Fatal(err)
+	}
+}
+
 const site = "https://paindash.example.com"
 
 // localSite serves the echo app behind local accounts, with a settable clock.
@@ -63,8 +76,10 @@ func TestLocalSignIn(t *testing.T) {
 	if s := body(res); res.StatusCode != http.StatusUnauthorized || !strings.Contains(s, "Wrong email or password") || !strings.Contains(s, `value="alice@example.com"`) {
 		t.Errorf("wrong password: %d", res.StatusCode)
 	}
-	if res := signIn(b, "nobody@example.com", "correct horse battery", "/"); res.StatusCode != http.StatusUnauthorized {
-		t.Errorf("unknown account: %d", res.StatusCode)
+	for _, password := range []string{"correct horse battery", dummyPassword} {
+		if res := signIn(b, "nobody@example.com", password, "/"); res.StatusCode != http.StatusUnauthorized {
+			t.Errorf("unknown account, %q: %d", password, res.StatusCode)
+		}
 	}
 	if b.user(t) != nil {
 		t.Fatal("signed in after failures")
@@ -172,15 +187,7 @@ func TestLocalReload(t *testing.T) {
 
 	// Alice gets a new password, Bob is removed, Carol is added.
 	carol := "carol:" + hash(t, "a new passphrase here") + "\n"
-	content := "alice:" + hash(t, "another long password") + ":sec\n" + carol
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	later := clk.t.Add(time.Minute)
-	if err := os.Chtimes(path, later, later); err != nil {
-		t.Fatal(err)
-	}
-	clk.t = clk.t.Add(11 * time.Second) // the file is checked every 10 s
+	edit(t, path, clk, "alice:"+hash(t, "another long password")+":sec\n"+carol)
 	if ba.user(t) != nil || bb.user(t) != nil {
 		t.Error("sessions survived a new password and a removed account")
 	}
@@ -192,14 +199,52 @@ func TestLocalReload(t *testing.T) {
 	}
 
 	// A broken file keeps the previous accounts.
-	if err := os.WriteFile(path, []byte("garbage\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	later = later.Add(time.Minute)
-	_ = os.Chtimes(path, later, later)
-	clk.t = clk.t.Add(11 * time.Second)
+	edit(t, path, clk, "garbage\n")
 	if ba.user(t) == nil {
 		t.Error("a broken file signed alice out")
+	}
+}
+
+// A * in front of a hash, or in place of it, locks an account: its sessions
+// end and its sign-ins fail as a wrong password does, in as much time, until
+// the * is removed.
+func TestLocalLock(t *testing.T) {
+	alice := "alice:" + hash(t, "correct horse battery") + ":sec\n"
+	a, clk, path := localSite(t, alice+"carol:*\n", Policy{})
+	b := newBrowser(a.Middleware(echo), site)
+	signIn(b, "alice", "correct horse battery", "/")
+	if b.user(t) == nil {
+		t.Fatal("not signed in")
+	}
+
+	var warned []string
+	a.local.warn = func(msg string, _ ...any) { warned = append(warned, msg) }
+	compared, orig := 0, dummy
+	dummy = func() []byte { compared++; return orig() }
+	t.Cleanup(func() { dummy = orig })
+
+	edit(t, path, clk, strings.Replace(alice, ":", ":*", 1)+"carol:*\n")
+	if b.user(t) != nil {
+		t.Error("a locked account kept its session")
+	}
+	if len(warned) > 0 {
+		t.Errorf("warnings on locked accounts: %v", warned)
+	}
+	for _, name := range []string{"alice", "carol"} {
+		for _, password := range []string{"correct horse battery", dummyPassword} {
+			res := signIn(b, name, password, "/")
+			if s := body(res); res.StatusCode != http.StatusUnauthorized || !strings.Contains(s, "Wrong email or password") {
+				t.Errorf("%s, locked, %q: %d", name, password, res.StatusCode)
+			}
+		}
+	}
+	if compared != 4 {
+		t.Errorf("locked accounts compared against the dummy hash %d times, want 4", compared)
+	}
+
+	edit(t, path, clk, alice+"carol:*\n")
+	if res := signIn(b, "alice", "correct horse battery", "/"); res.StatusCode != http.StatusSeeOther || b.user(t) == nil {
+		t.Errorf("unlocked: %d", res.StatusCode)
 	}
 }
 
@@ -269,6 +314,7 @@ func TestParseAccounts(t *testing.T) {
 	for _, bad := range []string{
 		"alice\n",
 		":" + h + "\n",
+		"alice:\n",
 		"alice:not-a-hash\n",
 		"alice:" + h + "\nALICE:" + h + "\n",
 	} {
@@ -277,8 +323,13 @@ func TestParseAccounts(t *testing.T) {
 		}
 	}
 	accs, err := parseAccounts([]byte("alice:" + h + ": sec , ,dev\n"))
-	if err != nil || strings.Join(accs["alice"].groups, ",") != "sec,dev" {
+	if err != nil || strings.Join(accs["alice"].groups, ",") != "sec,dev" || accs["alice"].locked() {
 		t.Errorf("groups: %v %v", accs, err)
+	}
+	// * in place of the hash, or in front of it: a locked account.
+	accs, err = parseAccounts([]byte("alice:*\nbob:*" + h + ":sec\n"))
+	if err != nil || !accs["alice"].locked() || !accs["bob"].locked() || strings.Join(accs["bob"].groups, ",") != "sec" {
+		t.Errorf("locked accounts: %v %v", accs, err)
 	}
 	// htpasswd -nbB writes $2y$ hashes.
 	y := "$2y$" + strings.TrimPrefix(h, "$2a$")

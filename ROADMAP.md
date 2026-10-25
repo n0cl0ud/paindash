@@ -10,9 +10,10 @@ What is next, roughly in priority order, and the known issues. Decisions behind 
 - **Gateway API** `HTTPRoute` in the exposure model.
 - **Signed assertions of other identity-aware proxies** (Cloudflare Access, Google IAP), checked
   like Pomerium's. Trusting plain identity headers (oauth2-proxy) only after a threat model.
-- **Passkeys for local accounts** (WebAuthn): passkey-only accounts with user verification,
-  enrolled after a fresh sign-in or through a short-lived invitation (`paindash passkey invite`).
-  Identity providers and Pomerium already offer passkeys in the other modes.
+- **Passkeys for local accounts** (WebAuthn): passkey-only accounts (`*` in place of the hash) with
+  user verification, enrolled after a fresh sign-in or through a short-lived invitation
+  (`paindash passkey invite`). Identity providers and Pomerium already offer passkeys in the other
+  modes.
 - **Signed images** (cosign keyless) on top of the SLSA provenance and SBOM already attached.
 - **Alerting**: ship example PrometheusRules for the `/metrics` series (new KEV on an
   internet-facing workload, stale vulnerability DB, stale inventory).

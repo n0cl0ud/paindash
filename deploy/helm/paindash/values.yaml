@@ -89,7 +89,7 @@ auth:
     # ID token claim holding the groups (binary default "groups"); a dotted path reaches into objects, e.g. realm_access.roles.
     groupsClaim: ""
   local:
-    # Existing Secret holding the accounts file: name:bcrypt-hash[:group,...] lines (paindash hash-password); required in local mode.
+    # Existing Secret holding the accounts file: name:bcrypt-hash[:group,...] lines (paindash hash-password; * in front of a hash locks the account); required in local mode.
     existingSecret: ""
     # Key of the accounts file in existingSecret.
     existingSecretKey: users

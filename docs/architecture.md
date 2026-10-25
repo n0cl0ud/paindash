@@ -602,14 +602,15 @@ From [SECURITY.md](../SECURITY.md), and how the code enforces it:
     Pomerium is rejected.
   - `oidc`: authorization code flow with PKCE; state, nonce and verifier travel in a sealed cookie
     for 10 minutes; the ID token is verified (signature, issuer, audience, expiry, nonce).
-  - `local`: bcrypt hashes from `PAINDASH_USERS_FILE`, read again when it changes; an unknown
-    account takes as long as a wrong password; at most 4 hashes compared at once; 5 failures in 15
-    minutes block an account, 30 a minute across accounts block every sign-in.
+  - `local`: bcrypt hashes from `PAINDASH_USERS_FILE`, read again when it changes (`*` in front of
+    a hash locks the account); an unknown or locked account takes as long as a wrong password; at
+    most 4 hashes compared at once; 5 failures in 15 minutes block an account, 30 a minute across
+    accounts block every sign-in.
   - Sessions of `oidc` and `local`: an AES-256-GCM sealed cookie (name, the groups the policy uses,
     sign-in method and time, expiry), HttpOnly, SameSite=Lax, Secure and `__Host-` over HTTPS,
     with a key from the `secrets` table. Not stored server-side: sign-out deletes the cookie, a copy
-    stays valid until it expires. Local accounts are checked on every request (a removed account or
-    a new password ends its sessions). The sign-in form and sign-out accept posts from
+    stays valid until it expires. Local accounts are checked on every request (a removed or locked
+    account, or a new password, ends its sessions). The sign-in form and sign-out accept posts from
     `PAINDASH_PUBLIC_URL` only (`Origin`, `Sec-Fetch-Site`), and redirects after sign-in stay on
     the site.
   - `PAINDASH_ALLOWED_GROUPS` decides who gets in, `PAINDASH_EDITOR_GROUPS` who may record and

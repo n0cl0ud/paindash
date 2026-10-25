@@ -374,8 +374,11 @@ auth:
 
 paindash reads the file again when the Secret changes: an account added, removed or given a new
 password applies within a couple of minutes, without a restart, and the last two sign that account
-out. Sign-in is rate-limited: after 5 wrong passwords in 15 minutes an account is refused until
-the first one is 15 minutes old, and 30 failures within a minute, across accounts, refuse every
+out. To lock an account and keep its line, put `*` in front of its hash, or in place of it: it is
+signed out, and its sign-ins fail as with a wrong password until the `*` is removed. Putting a
+line back as it was revives its sessions that have not expired; a new password ends them for good.
+Sign-in is rate-limited: after 5 wrong passwords in 15 minutes an account is refused until the
+first one is 15 minutes old, and 30 failures within a minute, across accounts, refuse every
 sign-in for that minute.
 
 **Sessions** of `oidc` and `local` are an encrypted cookie, HttpOnly and SameSite=Lax (Secure, with

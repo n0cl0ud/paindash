@@ -38,10 +38,15 @@ type account struct {
 	groups []string
 }
 
+// locked: a * in front of the hash, or in place of it, refuses password
+// sign-in, as in /etc/shadow. The line, its groups and the hash are kept, to
+// unlock by removing the *; passkey-only accounts will use it too (ROADMAP).
+func (a account) locked() bool { return len(a.hash) > 0 && a.hash[0] == '*' }
+
 // localLogin checks passwords against the accounts file: one account per line,
 // name:bcrypt-hash[:group,group...], the format of htpasswd -B. The file is
 // read again when it changes (a mounted Secret is updated in place), so
-// accounts are added, removed or changed without a restart.
+// accounts are added, removed, locked or changed without a restart.
 type localLogin struct {
 	path    string
 	limiter *limiter
@@ -95,11 +100,14 @@ func (a *Sessions) loginPost(w http.ResponseWriter, r *http.Request) {
 	acc, found, ok := a.local.check(name, r.PostForm.Get("password"))
 	if !ok {
 		a.local.limiter.fail(name)
-		if found {
-			a.log.Warn("sign-in failed: wrong password", "user", acc.name)
-		} else {
+		switch {
+		case !found:
 			// Not logged: often a password typed in the wrong field.
 			a.log.Warn("sign-in failed: unknown account")
+		case acc.locked():
+			a.log.Warn("sign-in refused: account locked", "user", acc.name)
+		default:
+			a.log.Warn("sign-in failed: wrong password", "user", acc.name)
 		}
 		form.Error = "Wrong email or password."
 		a.render(w, http.StatusUnauthorized, form)
@@ -109,23 +117,26 @@ func (a *Sessions) loginPost(w http.ResponseWriter, r *http.Request) {
 	a.signIn(w, r, session{Email: acc.name, Groups: acc.groups, Check: fingerprint(acc.hash), Method: methodPassword}, rd)
 }
 
-// dummy is compared when the account does not exist, so that the answer takes
-// as long as for a wrong password and does not reveal which accounts exist.
+// dummy is compared when the account does not exist or is locked, so that the
+// answer takes as long as for a wrong password and reveals neither. Its
+// password is public: check never lets it sign in.
 var dummy = sync.OnceValue(func() []byte {
-	h, _ := bcrypt.GenerateFromPassword([]byte("paindash: no such account"), HashCost)
+	h, _ := bcrypt.GenerateFromPassword([]byte(dummyPassword), HashCost)
 	return h
 })
+
+const dummyPassword = "paindash: no such account"
 
 func (l *localLogin) check(name, password string) (acc account, found, ok bool) {
 	acc, found = l.account(name)
 	hash := acc.hash
-	if !found {
+	if !found || acc.locked() {
 		hash = dummy()
 	}
 	l.sem <- struct{}{}
 	err := bcrypt.CompareHashAndPassword(hash, []byte(password))
 	<-l.sem
-	return acc, found, found && err == nil
+	return acc, found, found && !acc.locked() && err == nil
 }
 
 // account looks a name up, after reading the file again if it changed (at
@@ -166,7 +177,7 @@ func (l *localLogin) reloadLocked() error {
 		return fmt.Errorf("%s: %w", l.path, err)
 	}
 	for _, a := range accounts {
-		if c, _ := bcrypt.Cost(a.hash); c < 10 {
+		if c, _ := bcrypt.Cost(a.hash); c < 10 && !a.locked() {
 			l.warn("weak password hash: bcrypt cost below 10, hash it again with paindash hash-password", "user", a.name, "cost", c)
 		}
 	}
@@ -186,11 +197,10 @@ func parseAccounts(b []byte) (map[string]account, error) {
 		if len(parts) < 2 || parts[0] == "" {
 			return nil, fmt.Errorf("line %d: want name:bcrypt-hash[:group,...]", n)
 		}
-		hash := []byte(parts[1])
-		if _, err := bcrypt.Cost(hash); err != nil {
+		acc := account{name: parts[0], hash: []byte(parts[1])}
+		if _, err := bcrypt.Cost(acc.hash); err != nil && !acc.locked() {
 			return nil, fmt.Errorf("line %d: not a bcrypt hash (paindash hash-password, or htpasswd -nB)", n)
 		}
-		acc := account{name: parts[0], hash: hash}
 		if len(parts) == 3 {
 			for _, g := range strings.Split(parts[2], ",") {
 				if g = strings.TrimSpace(g); g != "" {

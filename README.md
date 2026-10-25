@@ -97,7 +97,7 @@ Environment variables (the Helm chart maps its values to them).
 | `PAINDASH_PUBLIC_URL` | — | `oidc` and `local`: the URL browsers use (redirect URI, cookies, origin of the sign-in form); https, plain http only on localhost |
 | `PAINDASH_OIDC_ISSUER`, `PAINDASH_OIDC_CLIENT_ID`, `PAINDASH_OIDC_CLIENT_SECRET` | — | `oidc`: the provider and the client (no secret for a public client) |
 | `PAINDASH_OIDC_SCOPES`, `PAINDASH_OIDC_GROUPS_CLAIM` | `openid,email,profile`, `groups` | `oidc`: scopes requested; ID token claim holding the groups (`realm_access.roles` reaches into an object) |
-| `PAINDASH_USERS_FILE` | — | `local`: the accounts, `name:bcrypt-hash[:group,…]` lines (`paindash hash-password`), read again when the file changes |
+| `PAINDASH_USERS_FILE` | — | `local`: the accounts, `name:bcrypt-hash[:group,…]` lines (`paindash hash-password`), read again when the file changes; `*` in front of a hash locks the account |
 | `PAINDASH_SESSION_TTL` | `12h` | `oidc` and `local`: session lifetime |
 | `PAINDASH_ALLOWED_GROUPS` | — | groups allowed in; empty allows any authenticated user |
 | `PAINDASH_EDITOR_GROUPS` | — | groups that may record and revoke exceptions, the others read; empty: everyone allowed in |
