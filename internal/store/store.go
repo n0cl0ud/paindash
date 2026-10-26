@@ -846,6 +846,111 @@ func (s *Store) HistoryStart(ctx context.Context) (time.Time, error) {
 	return *t, nil
 }
 
+// FactSpan is a history fact and when it held: Until is zero while it still does.
+type FactSpan struct {
+	Fact         model.HistoryFact
+	Since, Until time.Time
+}
+
+const factCols = `env, cluster, namespace, kind, name, vuln_id, pkg_name, pkg_type, severity, kev, has_fix, suspect, covered, exposure`
+
+// scanFact reads factCols, then extra columns into extra.
+func scanFact(row pgx.Row, f *model.HistoryFact, extra ...any) error {
+	var sev string
+	err := row.Scan(append([]any{&f.Env, &f.Cluster, &f.Namespace, &f.Kind, &f.Name, &f.VulnID, &f.PkgName, &f.PkgType,
+		&sev, &f.KEV, &f.HasFix, &f.Suspect, &f.Covered, &f.Exposure}, extra...)...)
+	f.Severity = model.Severity(sev)
+	return err
+}
+
+// OpenHistoryFacts returns the facts that still hold, with their row ids. A
+// second open row of the same fact comes back in duplicates, to be closed.
+func (s *Store) OpenHistoryFacts(ctx context.Context) (open map[model.HistoryFact]int64, duplicates []int64, err error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+factCols+`, id FROM history_facts WHERE until IS NULL ORDER BY id`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	open = map[model.HistoryFact]int64{}
+	for rows.Next() {
+		var f model.HistoryFact
+		var id int64
+		if err := scanFact(rows, &f, &id); err != nil {
+			return nil, nil, err
+		}
+		if _, dup := open[f]; dup {
+			duplicates = append(duplicates, id)
+			continue
+		}
+		open[f] = id
+	}
+	return open, duplicates, rows.Err()
+}
+
+// UpdateHistoryFacts closes the rows closed and opens a row for each fact of
+// opened, both at at, in one transaction. It returns the new rows' ids, in the
+// order of opened.
+func (s *Store) UpdateHistoryFacts(ctx context.Context, closed []int64, opened []model.HistoryFact, at time.Time) ([]int64, error) {
+	ids := make([]int64, len(opened))
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if len(closed) > 0 {
+			if _, err := tx.Exec(ctx, `UPDATE history_facts SET until = $2 WHERE id = ANY($1) AND until IS NULL`, closed, at); err != nil {
+				return err
+			}
+		}
+		if len(opened) == 0 {
+			return nil
+		}
+		b := &pgx.Batch{}
+		for _, f := range opened {
+			b.Queue(`INSERT INTO history_facts (`+factCols+`, since)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+				f.Env, f.Cluster, f.Namespace, f.Kind, f.Name, f.VulnID, f.PkgName, f.PkgType,
+				string(f.Severity), f.KEV, f.HasFix, f.Suspect, f.Covered, f.Exposure, at)
+		}
+		br := tx.SendBatch(ctx, b)
+		for i := range opened {
+			if err := br.QueryRow().Scan(&ids[i]); err != nil {
+				br.Close()
+				return err
+			}
+		}
+		return br.Close()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// HistoryFactsSince returns the facts of env that held at some point after
+// since, by their start, and when the env's facts begin (zero when it has none).
+func (s *Store) HistoryFactsSince(ctx context.Context, env string, since time.Time) ([]FactSpan, time.Time, error) {
+	var first *time.Time
+	if err := s.pool.QueryRow(ctx, `SELECT min(since) FROM history_facts WHERE env = $1`, env).Scan(&first); err != nil || first == nil {
+		return nil, time.Time{}, err
+	}
+	rows, err := s.pool.Query(ctx, `SELECT `+factCols+`, since, until FROM history_facts
+		WHERE env = $1 AND (until IS NULL OR until > $2) ORDER BY since, id`, env, since)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	defer rows.Close()
+	var out []FactSpan
+	for rows.Next() {
+		var sp FactSpan
+		var until *time.Time
+		if err := scanFact(rows, &sp.Fact, &sp.Since, &until); err != nil {
+			return nil, time.Time{}, err
+		}
+		if until != nil {
+			sp.Until = *until
+		}
+		out = append(out, sp)
+	}
+	return out, *first, rows.Err()
+}
+
 func (s *Store) SetState(ctx context.Context, key, value string) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO state (key, value, updated_at) VALUES ($1, $2, now())
 		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = now()`, key, value)

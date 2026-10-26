@@ -101,8 +101,9 @@ flowchart LR
 | CISA KEV catalog | 1 h | `PAINDASH_KEV_INTERVAL` |
 | EPSS scores of every CVE | 24 h | |
 | Initial scan progress events | 1 min | `PAINDASH_PROGRESS_INTERVAL` |
-| Metrics snapshot and history check | 30 s | |
+| Metrics snapshot, history check and history facts | 30 s | |
 | History point | on change, at least 5 min apart; at least daily | |
+| History facts | on change; an environment with pending scans is held up to 12 × 5 min | |
 | Live invalidation flush | 1 s | |
 | SSE heartbeat | 15 s | |
 | Cluster missing from a snapshot | kept 15 min | |
@@ -356,6 +357,7 @@ sequenceDiagram
     loop every 30 s
         M->>M: summary of each env from the read model
         M->>DB: history point when the numbers moved and scans settled
+        M->>DB: history facts that changed, once scans settled
     end
 ```
 
@@ -495,6 +497,25 @@ erDiagram
         integer excepted
         jsonb changes "events explaining the move"
     }
+    history_facts {
+        bigserial id PK
+        text env
+        text cluster
+        text namespace
+        text kind
+        text name
+        text vuln_id
+        text pkg_name
+        text pkg_type
+        text severity
+        boolean kev
+        boolean has_fix
+        boolean suspect
+        boolean covered "by an active exception"
+        text exposure
+        timestamptz since
+        timestamptz until "null while it holds"
+    }
     state {
         text key PK
         text value
@@ -518,6 +539,7 @@ matched by value, without a foreign key. Deleting an image cascades to its findi
 | `exceptions` | OpenVEX statements; never deleted (revoked and expired ones are the audit trail) |
 | `events` | the live feed, per environment (`*` for every one), pruned after the retention period |
 | `history` | headline numbers per environment over time |
+| `history_facts` | what those numbers are made of, as validity intervals, to recount any scope |
 | `state` | `inventory_last_sync`, `vulndb_built_at`, `vulndb_checked_at`, `kev_loaded`, `initial_scan_done`, `match_rules_version`, `exposure_available`, `history_exception_markers_pruned` |
 
 ## Read model and caching
@@ -588,6 +610,33 @@ The metrics loop (every 30 s) also feeds the `history` table, through a per-envi
   of the history, since they move no environment's numbers.
 - `/api/history` returns every environment's points over the window, preceded by the last point
   before it and followed by the live values, so that each line ends at the tiles.
+
+### Filtered history
+
+The points above hold environment totals: a scope cannot be cut out of them, and precomputing
+points per scope is out of reach (namespaces × components × exposures). The same loop therefore
+records the facts behind the numbers in `history_facts`, and any scope is recounted at read time.
+
+- **Facts.** One per (vulnerability, package name, package type, workload) of an environment, with
+  what the counts look at: severity, KEV, a fix on any of its rows, misidentified on any of the
+  workload's containers, covered by an active exception on that workload, and the widest exposure
+  of the containers that carry it (`view.HistoryFacts`). Only the vulnerabilities that can count
+  are kept: KEV, critical, high, or covered by an exception somewhere.
+- **Validity intervals.** A fact's row is open (`until` null) while it holds. When any attribute
+  changes, the row is closed and a new one opened, at the same instant; only changes are written.
+  The recorder keeps the open facts in memory (loaded at startup, duplicates closed) and does
+  nothing while the dataset has not changed. An environment with pending scans is held, its facts
+  untouched, up to 12 × 5 minutes: otherwise a rollout would dip the numbers until the new image
+  is scanned.
+- **Recounting.** With `ns`, `wl` or `exp`, `/api/history` reads each environment's rows that
+  overlap the window and sweeps them in time order (+1 at `since`, −1 at `until`). It applies every
+  change up to the start of the window (or of the facts, if later) and emits a point there, then one
+  at each later change instant that moves the numbers, and appends the live values of the same
+  scope. `view.CountFacts` counts the in-scope facts exactly like `view.Summary` counts the findings
+  of that scope; `TestCountFactsMatchesSummary` holds them together.
+- **Limits.** A filtered history starts when the facts were first recorded (`scopedSince`) and its
+  points carry no change markers. A workload whose containers carrying a vulnerability have
+  different exposures (during a rollout) is one fact, at the widest of them.
 
 ## Security model
 

@@ -76,14 +76,23 @@ workload gets it, while that workload's events show "+1 KEV".
 settle) and once a day, each point with the events that explain the change.
 **Why.** A readable trend, not a noisy one. A change undone within 5 min never shows.
 
+### 11. Filtered history from validity intervals
+**Decision.** Record what the headline numbers are made of, one fact per (vulnerability, package,
+workload) of an env with the attributes the counts look at, as rows valid from `since` to `until`;
+write only changes. Recount the history of a scope at read time, with the same rules as the tiles.
+**Why.** Points per scope cannot be precomputed (namespaces × components × exposures), and full
+snapshots of the facts would grow at every point even when nothing moves.
+**Implies.** A filtered history starts with the release that records the facts, and its points
+have no change markers. Any counting change in the summary must be mirrored in `view.CountFacts`.
+
 ## Prioritization
 
-### 11. Urgency order
+### 12. Urgency order
 **Decision.** Actively exploited (CISA KEV) first, then severity, exposure (internet first), EPSS.
 **Why.** Exploitation in the wild beats theoretical severity; exposure and exploit probability
 break ties between equal severities.
 
-### 12. Exposure: three levels, never understated
+### 13. Exposure: three levels, never understated
 **Decision.** internet / internal / none, from Ingress classes, LoadBalancer Services (private IP or
 "internal" hostname = internal) and Traefik IngressRoute entrypoints. Unknown entrypoints count as
 internet-facing (and are logged).
@@ -93,12 +102,12 @@ the UI says "exposure not configured" instead of "none". Services lead to pods t
 EndpointSlices (by pod name, host network pods included) and Endpoints (by IP, without them); a
 slice name shared by two long Service names gets the widest of their levels.
 
-### 13. Fixed version of the installed release line
+### 14. Fixed version of the installed release line
 **Decision.** Show, for each installed version, the lowest fixed version above it.
 **Why.** Advisories list one fix per release line (e.g. 1.10.28, 2.2.28, 2.9.8); the first one of
 the list can be a downgrade.
 
-### 14. Promotion along a configured chain
+### 15. Promotion along a configured chain
 **Decision.** `PAINDASH_PROMOTION` (default dev, test, prod). "Already fixed in X → promote" only
 suggests images from earlier envs, filtered server-side.
 **Why.** An image from a later env without the vuln is usually older: suggesting it would be a
@@ -106,7 +115,7 @@ rollback.
 
 ## Exceptions and security
 
-### 15. Exceptions as expiring OpenVEX statements
+### 16. Exceptions as expiring OpenVEX statements
 **Decision.** "Not affected" statements with an OpenVEX justification, a free-text statement, a
 scope (vuln + package name, optional namespace or workload) and a mandatory expiry (at most 180
 days); exported as an OpenVEX document.
@@ -114,7 +123,7 @@ days); exported as an OpenVEX document.
 **Implies.** They match the package name in any version and in every env; their events (and history
 markers) go only to the envs where they cover a container.
 
-### 16. Authentication: Pomerium, OpenID Connect or local accounts
+### 17. Authentication: Pomerium, OpenID Connect or local accounts
 **Decision.** Verify Pomerium's signed assertion (JWKS); or sign in with an OpenID Connect provider
 (authorization code with PKCE) or against a file of bcrypt hashes, then keep the user in an
 encrypted cookie (AES-256-GCM, key in the `secrets` table), stored nowhere else; or `disabled` for
@@ -128,14 +137,14 @@ source of bypasses, so they wait for a deliberate threat model (roadmap).
 deletes it from the browser. Local accounts are checked on every request (removed, locked by a `*`
 or given a new password: signed out), OpenID Connect groups at sign-in.
 
-### 17. Session expiry reloads the page
+### 18. Session expiry reloads the page
 **Decision.** On a 401 or a login redirect, reload once (not more than once a minute, never while
 the exception form is open); otherwise show a banner.
 **Why.** The proxy's silent re-login makes a reload enough; a banner for that is friction.
 
 ## Fix prompts
 
-### 18. Prompts for coding agents, generated in the browser
+### 19. Prompts for coding agents, generated in the browser
 **Decision.** Per workload and per vulnerability, a Markdown prompt to paste into Claude Code or
 any coding agent: fix, verify, one PR per repo, one-line commits without trailers. Experimental.
 **Why.** The fix is usually a dependency or base image bump an agent does well; the dashboard has
@@ -147,14 +156,14 @@ OCI `source` and `revision` labels, guessed from the image name otherwise (and f
 
 ## Packaging
 
-### 19. v0.1 scope
+### 20. v0.1 scope
 **Decision.** Ship: Prometheus source, Ingress/LB/Traefik exposure, Pomerium, OpenID Connect,
 local accounts or disabled auth, minimal Helm chart without bundled PostgreSQL, plain manifests,
 compose demo, multi-arch image.
 Defer: Kubernetes API source, Gateway API, oauth2-proxy headers, cosign signatures.
 **Why.** Each generalization built without real users would be subtly wrong; wait for their needs.
 
-### 20. Multi-arch through cross-compilation
+### 21. Multi-arch through cross-compilation
 **Decision.** Build stages run on the build platform; Go cross-compiles paindash, syft, grype and
 the ECR credential helper for the target platform.
 **Why.** Emulated arm64 builds of the scanners take far longer.

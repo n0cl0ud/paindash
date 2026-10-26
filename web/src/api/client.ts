@@ -242,14 +242,15 @@ export const api = {
   /** The author is taken from the Pomerium identity server-side, never sent. */
   createException: (input: ExceptionInput) => postJson<Exception>("/api/exceptions", input),
   revokeException: (id: number) => postJson<Exception>(`/api/exceptions/${id}/revoke`),
-  history: (days: number, signal?: AbortSignal) =>
-    getJson<HistoryResponse>(`/api/history?${qs({ days })}`, signal).then((r) => ({
+  history: (days: number, scope: Scope, signal?: AbortSignal) =>
+    getJson<HistoryResponse>(`/api/history?${qs({ days, ...scopeParams(scope) })}`, signal).then((r) => ({
       ...r,
       // Go encodes "no point yet" as the zero time.
       start: r.start && !r.start.startsWith("0001-") ? r.start : null,
       envs: Object.fromEntries(
         Object.entries(r.envs ?? {}).map(([env, ps]) => [env, arr(ps).map((p) => ({ ...p, changes: arr(p.changes) }))]),
       ),
+      scopedSince: r.scopedSince ?? null,
     })),
   events: (env: string, limit: number, signal?: AbortSignal) =>
     getJson<EventsResponse>(`/api/events?${qs({ env, limit })}`, signal).then((r) => ({
@@ -317,11 +318,11 @@ export const queries = {
       queryFn: ({ signal }) => api.exceptions(signal),
     }),
   /** Every env at once (the chart compares them); 0 days = all. */
-  history: (days: number) =>
+  history: (days: number, scope: Scope) =>
     queryOptions({
       // Not env-scoped: invalidated along with any "summary".
-      queryKey: ["history", days],
-      queryFn: ({ signal }) => api.history(days, signal),
+      queryKey: ["history", days, scope],
+      queryFn: ({ signal }) => api.history(days, scope, signal),
       refetchInterval: 5 * 60_000,
     }),
   events: (env: string) =>

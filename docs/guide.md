@@ -201,6 +201,13 @@ move (at most every 5 minutes, once the scans in progress are done or after an h
 them) and at least once a day. Each point keeps the events since the previous one that explain the
 move: deployments, removals, scans, new or withdrawn CVEs, KEV additions, exceptions.
 
+Under scope filters, the same four numbers are recounted for the scope. paindash also records what
+they are made of, each (vulnerability, package, workload) with its severity, KEV, fix, exception,
+exposure and misidentification, from when it starts to hold to when it stops. Any scope is recounted
+from these facts at any past time. A filtered history therefore starts when paindash first
+recorded facts (after the upgrade that brought them), and its points carry no events: they say how
+much, not what moved it.
+
 ## A tour of the UI
 
 ![To fix in prod](screenshots/todo.png)
@@ -224,10 +231,9 @@ move: deployments, removals, scans, new or withdrawn CVEs, KEV additions, except
 
 Under the top bar, **Namespaces**, **Components** (`namespace/name`) and **Exposure** narrow the
 views down. They combine with AND, are kept in the URL (`?ns=checkout,catalog&wl=checkout/checkout-api&exp=internet`)
-and survive environment switches. They apply to the KPI tiles, To fix, Workloads, All
+and survive environment switches. They apply to the KPI tiles, the history, To fix, Workloads, All
 vulnerabilities, the scans drawer and the workload events of the live feed. They do not apply to
-the history (env-wide), the workload page or Exceptions. The Exposure filter is disabled when
-exposure is not configured.
+the workload page or Exceptions. The Exposure filter is disabled when exposure is not configured.
 
 ### KPI tiles
 
@@ -342,9 +348,15 @@ lines ending at today's value, with its change over the range:
 - **Table** shows the same points as rows.
 - **Compare with prod** overlays the series of the last environment of the promotion chain
   (`PAINDASH_PROMOTION`, `prod` by default) as a dotted line on another environment: the gap is
-  what has not been promoted yet. It shows once that environment has recorded history.
+  what has not been promoted yet. It shows once that environment has recorded history. Under scope
+  filters, it compares the same scope.
+- **Trend:** each number's change over the range ("▼ 3 30d"). When the history is younger than
+  the range, the change is since its first point ("▲ 2 since Oct 26").
 
-The history covers the whole environment: scope filters do not apply to it. "High with fix,
+**Under scope filters**, the four lines are recounted for the scope and end on its KPI tiles. A
+chip says **Filtered · since** the day the facts behind it were first recorded, and the chart
+starts there when that is later than the range. Filtered points have no markers and nothing to
+pin. Before any fact is recorded, the panel says "Filtered history starts now". "High with fix,
 internet" is hidden when exposure is not configured.
 
 ### Live feed
@@ -560,12 +572,12 @@ the Prometheus metrics and the OpenVEX export.
 | POST | `/api/exceptions` | record an exception |
 | POST | `/api/exceptions/{id}/revoke` | revoke an exception |
 | GET | `/api/events` | the latest events of an environment and the environment-wide ones (`limit`, default 50, max 500) |
-| GET | `/api/history` | history points of every environment over `days` (all when 0 or absent), each series ending with the current values |
+| GET | `/api/history` | history points of every environment over `days` (all when 0 or absent), each series ending with the current values; with `ns`, `wl` or `exp`, recounted for that scope (no `changes`), and `scopedSince` gives, per environment, when its facts begin (an environment without any has an empty series) |
 | GET | `/api/stream` | Server-Sent Events for an environment: `live` (an event) and `invalidate` (`{"scopes": ["summary", "findings", "workloads"]}`), a ping comment every 15 s |
 
 - `env` selects the environment (default: the first of `PAINDASH_ENVS`).
 - `ns`, `wl` (`namespace/name`) and `exp` (`internet`, `internal`, `none`), comma-separated,
-  scope `summary`, `findings`, `workloads` and `images`.
+  scope `summary`, `findings`, `workloads`, `images` and `history`.
 - Writes need `Content-Type: application/json`; cross-site requests are refused; the author is the
   signed-in user, who must be in an editor group when `PAINDASH_EDITOR_GROUPS` is set (403
   otherwise).

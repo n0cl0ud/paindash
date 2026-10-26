@@ -80,6 +80,8 @@ The Go binary embeds `web/dist` (`web/embed.go`): build the UI before `go build`
   every env. Their events go only to the envs where they cover a container.
 - **History** points are written by the `/metrics` collection loop: coalesced over 5 min, after
   scans settle, at least daily. A change undone within 5 min never shows in history.
+- **Filtered history** is recounted from `history_facts` by `view.CountFacts`: any counting change
+  in `view.Summary` must be mirrored there. `TestCountFactsMatchesSummary` guards it.
 - **Images that stop running** keep their SBOM for `PAINDASH_RETENTION` (instant re-analysis when
   they come back) but are not rematched meanwhile.
 - **Scans**: a digest is scanned once; failures retry every 6 h; single-arch images are retried on

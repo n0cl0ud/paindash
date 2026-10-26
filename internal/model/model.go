@@ -434,6 +434,23 @@ func (p HistoryPoint) SameNumbers(o HistoryPoint) bool {
 		p.HighFixableInternet == o.HighFixableInternet && p.Excepted == o.Excepted
 }
 
+// HistoryFact is what the history numbers are made of: one (vulnerability,
+// package name, package type) on one workload of an env, with every attribute
+// the counts look at. Comparable, so that identical facts are equal map keys.
+type HistoryFact struct {
+	Env string
+	WorkloadRef
+	VulnID   string
+	PkgName  string
+	PkgType  string
+	Severity Severity
+	KEV      bool
+	HasFix   bool
+	Suspect  bool // misidentified package on one of the workload's containers
+	Covered  bool // an active exception covers it on this workload
+	Exposure string
+}
+
 type HistoryChange struct {
 	At    time.Time `json:"t"`
 	Type  EventType `json:"type"`

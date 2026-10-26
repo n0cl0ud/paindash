@@ -5,7 +5,7 @@ import type { HistoryChange, HistoryPoint } from "../api/types";
 import { cx } from "../lib/cx";
 import { useEnv } from "../lib/env";
 import { absDate, day, int } from "../lib/format";
-import { isScoped } from "../lib/scope";
+import { isScoped, scopeKey, type Scope } from "../lib/scope";
 import { Delta } from "./Badges";
 import { Icon } from "./Icon";
 import { EVENT_FALLBACK, EVENT_TYPES } from "./LiveFeed";
@@ -120,13 +120,23 @@ export function HistoryPanel() {
   const [compare, setCompare] = useState(false);
   const [table, setTable] = useState(false);
   const { data, isError, isPlaceholderData } = useQuery({
-    ...queries.history(days),
-    placeholderData: (prev) => prev,
+    ...queries.history(days, scope),
+    // The previous range of the same scope only: another scope's numbers would mislead.
+    placeholderData: (prev, prevQuery) =>
+      prevQuery && scopeKey(prevQuery.queryKey[2] as Scope) === scopeKey(scope) ? prev : undefined,
   });
 
   const series = SERIES.filter((s) => exposureAvailable || s.key !== "highFixableInternet");
   const points = data?.envs[env] ?? [];
   const recorded = points.length - 1; // the last one is the live value
+  // Under a scope the numbers are recounted from facts recorded since
+  // scopedSince: the chart starts there when that is later than the range.
+  const scoped = isScoped(scope);
+  const historyStart = (scoped ? data?.scopedSince?.[env] : data?.start) ?? null;
+  const young = data !== undefined && historyStart !== null && Date.parse(historyStart) > Date.parse(data.since);
+  const chartSince = data && (scoped && young && historyStart ? historyStart : data.since);
+  const rangeLabel = RANGES.find((r) => r.days === days)?.label.toLowerCase() ?? "";
+  const trendLabel = young && historyStart ? `since ${tickFmt.date.format(Date.parse(historyStart))}` : rangeLabel;
   // The end of the promotion chain (prod), where fixes have to land, compared
   // with the earlier envs of the chain only: what they fixed is not promoted yet.
   const promotion = useQuery(queries.meta()).data?.promotion ?? [];
@@ -160,19 +170,19 @@ export function HistoryPanel() {
             ›
           </span>
         </button>
-        {!open && recorded > 0 && data && (
+        {!open && recorded > 0 && data && chartSince && (
           <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {series.map((s) => (
-              <Sparkline key={s.key} s={s} points={points} since={data.since} now={data.now} />
+              <Sparkline key={s.key} s={s} points={points} since={chartSince} now={data.now} />
             ))}
           </span>
         )}
-        {open && isScoped(scope) && (
+        {open && scoped && (
           <span
-            className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-muted"
-            title="The history covers the whole environment: the namespace, component and exposure filters do not apply to it."
+            className="rounded bg-surface-2 px-1.5 py-0.5 text-xs whitespace-nowrap text-muted"
+            title="Recounted for the namespace, component and exposure filters from what paindash has recorded since then. Filtered points carry no change markers."
           >
-            Env-wide, filters don't apply
+            Filtered{historyStart ? ` · since ${day(historyStart)}` : ""}
           </span>
         )}
         {open && (
@@ -224,29 +234,35 @@ export function HistoryPanel() {
 
       {open && (
         <div className={cx("border-t border-line px-4 pt-3 pb-3 transition-opacity", isPlaceholderData && "opacity-60")}>
-          {!data ? (
+          {!data || !chartSince ? (
             isError ? (
               <p className="py-6 text-center text-sm text-muted">History unavailable right now.</p>
             ) : (
               <Skeleton className="h-56 w-full" />
             )
+          ) : scoped && !historyStart ? (
+            <p className="py-6 text-center text-sm text-muted">
+              Filtered history starts now: it is recomputed from what is recorded since then.
+            </p>
           ) : recorded < 1 ? (
             <p className="py-6 text-center text-sm text-muted">
               History starts {data.start ? day(data.start) : "now"}: a point is recorded whenever these numbers move,
               and once a day.
             </p>
           ) : table ? (
-            <HistoryTable points={points} series={series} since={data.since} />
+            <HistoryTable points={points} series={series} since={chartSince} />
           ) : (
             <HistoryChart
               points={points}
               compare={comparePoints}
               compareEnv={compareEnv}
               series={series}
-              since={data.since}
+              since={chartSince}
               now={data.now}
-              start={data.start}
+              start={historyStart}
               days={days}
+              trendLabel={trendLabel}
+              scoped={scoped}
             />
           )}
         </div>
@@ -336,12 +352,12 @@ function startValue(ps: HistoryPoint[], key: SeriesKey, t0: number): number {
 /** Change over the window: down is good for these counts, except "excepted" (neutral). */
 function Trend({ delta, neutral, label }: { delta: number; neutral: boolean; label: string }) {
   if (delta === 0) {
-    return <span className="text-xs text-muted">= {label}</span>;
+    return <span className="text-xs whitespace-nowrap text-muted">= {label}</span>;
   }
   const tone = neutral ? "bg-surface-2 text-ink-2" : delta < 0 ? "bg-good/10 text-good-text" : "bg-bad/10 text-bad-text";
   return (
     <span
-      className={cx("rounded px-1 text-xs font-semibold tabular-nums", tone)}
+      className={cx("rounded px-1 text-xs font-semibold whitespace-nowrap tabular-nums", tone)}
       title={`${delta > 0 ? "+" : "−"}${int(Math.abs(delta))} over ${label}`}
     >
       {delta < 0 ? "▼" : "▲"} {int(Math.abs(delta))}
@@ -359,6 +375,8 @@ function HistoryChart({
   now,
   start,
   days,
+  trendLabel,
+  scoped,
 }: {
   points: HistoryPoint[];
   compare?: HistoryPoint[];
@@ -368,16 +386,18 @@ function HistoryChart({
   now: string;
   start: string | null;
   days: number;
+  trendLabel: string;
+  scoped: boolean; // recounted points, without change markers
 }) {
   const uid = useId();
-  const rangeLabel = RANGES.find((r) => r.days === days)?.label.toLowerCase() ?? "";
   const [plotRef, plot] = useWidth<HTMLDivElement>();
   const [boxRef, box] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const [pinned, setPinned] = useState<number | null>(null);
   const W = Math.max(plot.width, 1);
   const t0 = Date.parse(since);
-  const t1 = Math.max(Date.parse(now), t0 + 3_600_000);
+  // Live point at the right edge, even for a history minutes old (a new filtered one).
+  const t1 = Math.max(Date.parse(now), t0 + 60_000);
   const x = (t: string) => Math.max(0, Math.min(W, ((Date.parse(t) - t0) / (t1 - t0)) * W));
 
   // Points the crosshair can land on: the ones inside the window.
@@ -385,7 +405,7 @@ function HistoryChart({
     () => points.map((p, i) => ({ i, t: Date.parse(p.t) })).filter((p) => p.t >= t0),
     [points, t0],
   );
-  useEffect(() => setPinned(null), [since]);
+  useEffect(() => setPinned(null), [since, scoped]);
 
   const yMax = useMemo(() => {
     const out = {} as Record<SeriesKey, number>;
@@ -418,7 +438,7 @@ function HistoryChart({
       e.preventDefault();
       const next = idx < 0 ? targets.length - 1 : Math.max(0, Math.min(targets.length - 1, idx + (e.key === "ArrowLeft" ? -1 : 1)));
       setHover(targets[next]?.i ?? null);
-    } else if (e.key === "Enter" && hover !== null) {
+    } else if (e.key === "Enter" && hover !== null && !scoped) {
       setPinned(hover);
     } else if (e.key === "Escape") {
       setPinned(null);
@@ -534,7 +554,7 @@ function HistoryChart({
               <div className="flex flex-col items-end justify-center gap-0.5 sm:items-stretch">
                 <span className="flex items-baseline gap-2">
                   <span className="text-xl leading-none font-semibold text-ink">{int(last)}</span>
-                  <Trend delta={last - startValue(points, s.key, t0)} neutral={s.key === "excepted"} label={rangeLabel} />
+                  <Trend delta={last - startValue(points, s.key, t0)} neutral={s.key === "excepted"} label={trendLabel} />
                 </span>
                 {lastCompare !== undefined && (
                   <span className="text-xs text-muted tabular-nums">{compareEnv} {int(lastCompare)}</span>
@@ -577,7 +597,7 @@ function HistoryChart({
         <div
           role="slider"
           tabIndex={0}
-          aria-label="History: arrow keys move between points, Enter pins the changes"
+          aria-label={`History: arrow keys move between points${scoped ? "" : ", Enter pins the changes"}`}
           aria-valuemin={0}
           aria-valuemax={Math.max(0, targets.length - 1)}
           aria-valuenow={Math.max(0, targets.findIndex((c) => c.i === active))}
@@ -585,7 +605,8 @@ function HistoryChart({
           className="absolute top-0 bottom-0 cursor-crosshair rounded focus-visible:outline-2 focus-visible:outline-accent-fill"
           style={{ left: plot.left, width: plot.width }}
           onPointerMove={onMove}
-          onClick={() => hover !== null && setPinned(hover === pinned ? null : hover)}
+          // Filtered points carry no changes to pin.
+          onClick={() => hover !== null && !scoped && setPinned(hover === pinned ? null : hover)}
           onKeyDown={onKey}
           onBlur={() => setHover(null)}
         >
@@ -611,25 +632,29 @@ function HistoryChart({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted sm:pl-[calc(9.5rem+0.75rem)]">
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="10" height="10" aria-hidden="true">
-            <Marker kind="deploy" x={5} y={0} />
-          </svg>
-          Deployment
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="10" height="10" aria-hidden="true">
-            <Marker kind="db" x={5} y={0} />
-          </svg>
-          New CVEs published
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="10" height="10" aria-hidden="true">
-            <Marker kind="exception" x={5} y={0} />
-          </svg>
-          Exception
-        </span>
-        <span className="ml-auto">Hover for details, click to pin what changed</span>
+        {!scoped && (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="10" height="10" aria-hidden="true">
+                <Marker kind="deploy" x={5} y={0} />
+              </svg>
+              Deployment
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="10" height="10" aria-hidden="true">
+                <Marker kind="db" x={5} y={0} />
+              </svg>
+              New CVEs published
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="10" height="10" aria-hidden="true">
+                <Marker kind="exception" x={5} y={0} />
+              </svg>
+              Exception
+            </span>
+          </>
+        )}
+        <span className="ml-auto">{scoped ? "Hover for details" : "Hover for details, click to pin what changed"}</span>
       </div>
 
       {pinnedPoint && (

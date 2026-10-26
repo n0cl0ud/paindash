@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- History under scope filters: with namespace, component or exposure filters, the four history lines
+  are recounted for that scope and end on its KPI tiles ("Filtered · since" the first recorded
+  facts). paindash now records what the numbers are made of, per vulnerability, package and
+  workload, as validity intervals (new table `history_facts`, written only on change); a filtered
+  history starts with this release and has no change markers. `/api/history` accepts `ns`, `wl` and
+  `exp`.
+- History panel: when the history is younger than the range, the trend says "since <date>".
 - Fix: a finding is flagged suspect (misidentified package) from each container's own version and
   image. It used to compare the group's first version with every image, so the flag changed with
   the scope and could miss a container whose own version was misidentified.

@@ -272,9 +272,11 @@ export interface LiveEvent {
   delta: { added: number; removed: number; kev: number } | null;
 }
 
-// GET /api/history?days=30
+// GET /api/history?days=30[&ns=…&wl=…&exp=…]
 // Headline numbers per env over time, counted like the summary tiles. Each
-// series ends with a live point at `now` (the tiles' values).
+// series ends with a live point at `now` (the tiles' values). Under a scope,
+// the points are recounted from the facts recorded since scopedSince[env],
+// without change markers; an env with no facts yet has an empty series.
 export interface HistoryChange {
   t: string;
   type: LiveEventType;
@@ -296,6 +298,7 @@ export interface HistoryResponse {
   start: string | null; // oldest point recorded, null if none
   now: string;
   envs: Record<string, HistoryPoint[]>; // oldest first
+  scopedSince: Record<string, string> | null; // per env, when its facts begin; null without a scope
 }
 
 // GET /api/events?env=prod&limit=50

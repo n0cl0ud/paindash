@@ -51,10 +51,11 @@ type metricsSnapshot struct {
 }
 
 type collector struct {
-	s    *Server
-	hist *historian
-	mu   sync.Mutex
-	last metricsSnapshot
+	s     *Server
+	hist  *historian
+	facts *factRecorder
+	mu    sync.Mutex
+	last  metricsSnapshot
 }
 
 func (c *collector) Describe(ch chan<- *prometheus.Desc) {
@@ -100,10 +101,12 @@ func (c *collector) refresh(ctx context.Context) error {
 		add(descSync, float64(t.Unix())) // live: no-op syncs do not reload ds
 	}
 	now := time.Now()
+	pending := map[string]bool{}
 	for _, e := range c.s.envInfos(ds) {
 		env := e.Name
 		ev := c.s.envView(ds, env, nil)
 		sum := ev.summary
+		pending[env] = sum.Images.Pending > 0
 		if err := c.hist.observe(ctx, env, sum, now); err != nil {
 			c.s.Log.Warn("history", "env", env, "err", err)
 		}
@@ -121,6 +124,9 @@ func (c *collector) refresh(ctx context.Context) error {
 			}
 			add(descWorkloadKEV, float64(w.KEV), env, w.Cluster, w.Namespace, w.Kind, w.Name)
 		}
+	}
+	if err := c.facts.record(ctx, ds, pending, now); err != nil {
+		c.s.Log.Warn("history facts", "err", err)
 	}
 	c.mu.Lock()
 	c.last = metricsSnapshot{metrics: ms, at: time.Now()}
@@ -147,7 +153,8 @@ func (c *collector) run(ctx context.Context, every time.Duration) {
 // until ctx ends (recording the history on the way). It is exposed on the
 // internal port only, never through Pomerium.
 func (s *Server) MetricsHandler(ctx context.Context) http.Handler {
-	c := &collector{s: s, hist: &historian{s: s, every: cmp.Or(s.HistoryEvery, 5*time.Minute)}}
+	every := cmp.Or(s.HistoryEvery, 5*time.Minute)
+	c := &collector{s: s, hist: &historian{s: s, every: every}, facts: &factRecorder{s: s, every: every}}
 	go c.run(ctx, 30*time.Second)
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(c, collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))

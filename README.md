@@ -64,7 +64,8 @@ Then open http://localhost:8080.
 
 - A live feed of deployments, new CVEs and additions to the KEV catalog.
 - History per environment (actively exploited, critical with a fix, high with a fix on
-  internet-facing workloads, excepted), with what moved each curve.
+  internet-facing workloads, excepted), with what moved each curve, also recounted for any
+  namespace, component or exposure filter.
 - Prometheus metrics per environment and workload, for your alerts.
 - Scopes by namespace, component and exposure, kept in the URL: every view is a link to share.
 
