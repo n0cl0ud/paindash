@@ -10,7 +10,8 @@ The history follows the scope filters, and the suspect flag no longer depends on
   workload, as validity intervals (new table `history_facts`, written only on change); a filtered
   history starts with this release and has no change markers. `/api/history` accepts `ns`, `wl` and
   `exp`.
-- History panel: when the history is younger than the range, the trend says "since <date>".
+- History panel: when the history is younger than the range, the trend says since when (e.g.
+  "since Oct 26").
 - Fix: a finding is flagged suspect (misidentified package) from each container's own version and
   image. It used to compare the group's first version with every image, so the flag changed with
   the scope and could miss a container whose own version was misidentified.
