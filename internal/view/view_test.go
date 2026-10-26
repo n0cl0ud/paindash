@@ -146,6 +146,43 @@ func TestSuspect(t *testing.T) {
 	}
 }
 
+func TestSuspectPerContainer(t *testing.T) {
+	// The same image in two workloads: the scanner got the traefik binary right
+	// in one, wrong in the other. The finding is suspect wherever the wrong one
+	// is in scope, whatever the container order.
+	right := container("prod", "prod-1", "right")
+	right.Namespace, right.Name, right.Image = "edge", "traefik", "traefik:v3.4.1"
+	wrong := container("prod", "prod-1", "wrong")
+	wrong.Namespace, wrong.Name, wrong.Image = "canary", "traefik", "traefik:v3.4.1"
+	traefik := func(version string) model.FindingRow {
+		r := row("CVE-9", "traefik", "3.5.0")
+		r.Pkg.Version = version
+		return r
+	}
+	ds := &model.Dataset{
+		Findings:    map[string][]model.FindingRow{"right": {traefik("3.4.1")}, "wrong": {traefik("4.1.0")}},
+		Vulns:       map[string]model.Vuln{"CVE-9": {ID: "CVE-9", Severity: model.High, KEV: ptr(false)}},
+		ImageStatus: map[string]string{"right": "scanned", "wrong": "scanned"},
+	}
+	for _, order := range [][]model.Container{{right, wrong}, {wrong, right}} {
+		ds.Containers = order
+		for _, tc := range []struct {
+			ns   []string
+			want bool
+		}{
+			{nil, true},
+			{[]string{"canary"}, true},
+			{[]string{"canary", "edge"}, true},
+			{[]string{"edge"}, false},
+		} {
+			f := findingByID(Findings(Scope(ds, tc.ns, nil, nil), "prod"), "CVE-9")
+			if f.VulnID == "" || f.Suspect != tc.want {
+				t.Errorf("first %s, scope %v: suspect = %v, want %v", order[0].Namespace, tc.ns, f.Suspect, tc.want)
+			}
+		}
+	}
+}
+
 func TestExceptions(t *testing.T) {
 	ds := dataset()
 	other := container("prod", "prod-1", "old")

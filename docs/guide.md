@@ -125,6 +125,8 @@ version, it shows them all.
 A finding is **suspect** when its package is named like the image it was found in, but with a
 different major version than the image tag: for example `traefik 1.24.4` (the Go toolchain version
 embedded in the binary) found in `traefik:v3.4.1`. Such a match is most likely a misidentification.
+Each container is checked with its own package version and image: a finding is suspect as soon as
+one of the containers in view has such a match, whatever the other containers and their order.
 
 Suspect findings are left out of the lists and of every count. "All vulnerabilities" says how many
 are hidden and shows them with **Show suspect**.

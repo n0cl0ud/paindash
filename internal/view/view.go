@@ -46,6 +46,9 @@ func Findings(ds *model.Dataset, env string) []model.Finding {
 	affected := map[key]map[string]bool{} // dedupe containers
 	versions := map[key][]string{}
 	fixes := map[key][]string{}
+	// Each container with its own version and image: the flag must not depend
+	// on which other containers are in scope.
+	suspect := map[key]bool{}
 	var order []key
 
 	for _, c := range ds.Containers {
@@ -62,6 +65,7 @@ func Findings(ds *model.Dataset, env string) []model.Finding {
 			}
 			versions[k] = appendUnique(versions[k], f.Pkg.Version)
 			fixes[k] = appendUnique(fixes[k], f.FixedIn...)
+			suspect[k] = suspect[k] || Suspect(f.Pkg.Name, f.Pkg.Version, c.Image)
 			if seen := affected[k]; !seen[c.Key()] {
 				seen[c.Key()] = true
 				g.Workloads = append(g.Workloads, model.AffectedContainer{
@@ -90,9 +94,7 @@ func Findings(ds *model.Dataset, env string) []model.Finding {
 			sort.Strings(fixes[k])
 			g.FixedIn = fixes[k]
 		}
-		g.Suspect = slices.ContainsFunc(g.Workloads, func(w model.AffectedContainer) bool {
-			return Suspect(g.Package.Name, versions[k][0], w.Image)
-		})
+		g.Suspect = suspect[k]
 		applyExceptions(g, ds.Exceptions)
 		g.Exposure = model.ExposureNone
 		for _, w := range g.Workloads {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix: a finding is flagged suspect (misidentified package) from each container's own version and
+  image. It used to compare the group's first version with every image, so the flag changed with
+  the scope and could miss a container whose own version was misidentified.
+
 ## 0.1.1
 
 A hardened image, and fixes for many environments and the install steps.
