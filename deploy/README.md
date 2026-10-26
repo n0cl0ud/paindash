@@ -258,7 +258,7 @@ Pomerium JWKS or the OpenID Connect provider, and, unless `enrichment.enabled=fa
 your Prometheus (or why it cannot):
 
 ```sh
-kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.1 \
+kubectl run paindash-snapshot --restart=Never --image=ghcr.io/n0cl0ud/paindash:0.1.2 \
   --env=PAINDASH_PROMETHEUS_URL=http://prometheus-operated.monitoring.svc:9090 -- snapshot
 kubectl wait pod/paindash-snapshot --timeout=2m \
   --for=jsonpath='{.status.containerStatuses[0].state.terminated}'
@@ -423,7 +423,7 @@ For a few users without an identity provider: a Secret holding one account per l
 characters at least) with the image:
 
 ```sh
-docker run --rm -it ghcr.io/n0cl0ud/paindash:0.1.1 hash-password
+docker run --rm -it ghcr.io/n0cl0ud/paindash:0.1.2 hash-password
 cat > users <<'EOF'
 alice@example.com:$2a$12$...:sec
 bob@example.com:$2a$12$...

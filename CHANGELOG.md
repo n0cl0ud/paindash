@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
+
+The history follows the scope filters, and the suspect flag no longer depends on the scope.
 
 - History under scope filters: with namespace, component or exposure filters, the four history lines
   are recounted for that scope and end on its KPI tiles ("Filtered · since" the first recorded

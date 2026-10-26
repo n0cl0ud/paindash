@@ -2,8 +2,8 @@ apiVersion: v2
 name: paindash
 description: CVE dashboard of the images actually running in Kubernetes, inventoried through kube-state-metrics.
 type: application
-version: 0.1.1
-appVersion: "0.1.1"
+version: 0.1.2
+appVersion: "0.1.2"
 home: https://github.com/n0cl0ud/paindash
 sources:
 - https://github.com/n0cl0ud/paindash
