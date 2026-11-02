@@ -46,7 +46,7 @@ RUN for t in syft grype; do \
 # zones and /tmp, enough for the four binaries, all static (CGO_ENABLED=0).
 # Nothing is fetched or run at build time. The free image only comes as
 # "latest": the digest audit re-pins it, which keeps the CA bundle current.
-FROM cgr.dev/chainguard/static:latest@sha256:c12f0107f8afb0bbc1b0eff96ff8675e85a10c6083d039b777c51fef5c27420f
+FROM cgr.dev/chainguard/static:latest@sha256:fc42af33e643f20d08baf03cddcc1c02ba57052dfb02edb0d79f3fc47bcea8d9
 COPY --from=scanners /out/syft /out/grype /usr/local/bin/
 COPY --from=build /out/docker-credential-ecr-login /usr/local/bin/
 COPY --from=build /out/paindash /usr/local/bin/paindash
