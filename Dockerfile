@@ -12,7 +12,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS build
 ARG TARGETOS TARGETARCH
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 WORKDIR /src
@@ -29,7 +29,7 @@ RUN go build -trimpath -ldflags="-s -w" -o /out/paindash ./cmd/paindash
 
 # syft and grype built from their pinned sources with our patched Go toolchain
 # and dependency overrides (tools/*/go.mod), instead of the release binaries.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS scanners
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS scanners
 ARG TARGETOS TARGETARCH
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 WORKDIR /src/tools
